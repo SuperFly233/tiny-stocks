@@ -29,10 +29,14 @@ DEFAULT_CONFIG = {
     "opacity": 0.97,
     "geometry": "",
     "display_metrics": {},
+    "size_mode": "normal",
 }
 
 
-DEFAULT_GEOMETRY = "308x520"
+GEOMETRIES = {
+    "tiny": "226x330",
+    "normal": "308x520",
+}
 
 
 def usable_geometry(value):
@@ -44,6 +48,10 @@ def usable_geometry(value):
     if width < 290 or height < 430:
         return ""
     return value
+
+
+def size_mode(config):
+    return "tiny" if config.get("size_mode") == "tiny" else "normal"
 
 
 def load_config():
@@ -219,8 +227,9 @@ def metric_color(metric, quote):
 
 
 class SparkLine(tk.Canvas):
-    def __init__(self, master):
-        super().__init__(master, height=48, bg="#05070a", highlightthickness=0, bd=0)
+    def __init__(self, master, mode="normal"):
+        height = 28 if mode == "tiny" else 48
+        super().__init__(master, height=height, bg="#05070a", highlightthickness=0, bd=0)
         self.points = []
         self.line_color = "#39b86f"
         self.bind("<Configure>", lambda _event: self.draw())
@@ -250,8 +259,9 @@ class SparkLine(tk.Canvas):
 
 
 class StockRow(tk.Frame):
-    def __init__(self, master, secid, remove_callback, metric_callback, drag_callback):
-        super().__init__(master, bg="#0b0f16", padx=8, pady=7)
+    def __init__(self, master, secid, remove_callback, metric_callback, drag_callback, mode="normal"):
+        self.mode = mode
+        super().__init__(master, bg="#0b0f16", padx=5 if mode == "tiny" else 8, pady=4 if mode == "tiny" else 7)
         self.secid = secid
         self.remove_callback = remove_callback
         self.metric_callback = metric_callback
@@ -266,7 +276,7 @@ class StockRow(tk.Frame):
             text=display_code(secid),
             fg="#f2f5fb",
             bg="#0b0f16",
-            font=("Microsoft YaHei UI", 8, "bold"),
+            font=("Microsoft YaHei UI", 7 if mode == "tiny" else 8, "bold"),
             anchor="w",
         )
         self.name.pack(side="left", fill="x", expand=True)
@@ -275,7 +285,7 @@ class StockRow(tk.Frame):
             text="--",
             fg="#657084",
             bg="#0b0f16",
-            font=("Consolas", 8),
+            font=("Consolas", 7 if mode == "tiny" else 8),
             anchor="e",
         )
         self.code.pack(side="right")
@@ -287,7 +297,7 @@ class StockRow(tk.Frame):
             text="--",
             fg="#f2f5fb",
             bg="#0b0f16",
-            font=("Consolas", 19, "bold"),
+            font=("Consolas", 15 if mode == "tiny" else 19, "bold"),
             anchor="w",
         )
         self.main_value.pack(side="left", fill="x", expand=True)
@@ -301,14 +311,14 @@ class StockRow(tk.Frame):
                 text="--",
                 fg="#798292",
                 bg="#0b0f16",
-                font=("Consolas", 8, "bold"),
+                font=("Consolas", 7 if mode == "tiny" else 8, "bold"),
                 anchor="e",
                 cursor="hand2",
             )
             label.bind("<Button-1>", lambda event, m=metric: self.metric_callback(self.secid, m))
             self.side_labels[metric] = label
 
-        self.spark = SparkLine(self)
+        self.spark = SparkLine(self, mode=mode)
         self.spark.pack(fill="x")
 
         self.bind_recursive("<Button-3>", self.menu)
@@ -365,6 +375,7 @@ class TinyStockWindow:
         self.trends = {}
         self.rows = {}
         self.display_metrics = dict(self.config.get("display_metrics") or {})
+        self.mode = size_mode(self.config)
         self.running = True
         self.next_quote_at = 0
         self.next_trend_at = 0
@@ -373,45 +384,32 @@ class TinyStockWindow:
 
         self.root = tk.Tk()
         self.root.title("Tiny Stocks")
-        self.root.overrideredirect(True)
         self.root.configure(bg="#05070a")
         self.root.attributes("-topmost", bool(self.config.get("always_on_top", True)))
         self.root.attributes("-alpha", float(self.config.get("opacity", 0.9)))
-        self.root.minsize(280, 360)
+        self.root.resizable(True, True)
+        self.root.minsize(190 if self.mode == "tiny" else 280, 220 if self.mode == "tiny" else 360)
         self.root.protocol("WM_DELETE_WINDOW", self.close)
 
         geometry = usable_geometry(self.config.get("geometry"))
         if geometry:
             self.root.geometry(geometry)
         else:
-            self.root.geometry(f"{DEFAULT_GEOMETRY}+120+80")
+            geometry_size = GEOMETRIES[self.mode]
+            self.root.geometry(f"{geometry_size}+120+80")
             self.root.update_idletasks()
-            x = max(0, self.root.winfo_screenwidth() - 326)
+            width = int(geometry_size.split("x")[0])
+            x = max(0, self.root.winfo_screenwidth() - width - 18)
             y = 42
-            self.root.geometry(f"{DEFAULT_GEOMETRY}+{x}+{y}")
+            self.root.geometry(f"{geometry_size}+{x}+{y}")
 
         self.build()
         self.render_rows()
         self.tick()
 
     def build(self):
-        self.frame = tk.Frame(self.root, bg="#151b25", padx=1, pady=1)
-        self.frame.pack(fill="both", expand=True)
-
-        self.inner = tk.Frame(self.frame, bg="#05070a")
-        self.inner.pack(fill="both", expand=True)
-
-        self.header = tk.Frame(self.inner, bg="#05070a", padx=8, pady=6)
+        self.header = tk.Frame(self.root, bg="#05070a", padx=8, pady=6)
         self.header.pack(fill="x")
-        self.header.bind("<ButtonPress-1>", self.start_drag)
-        self.header.bind("<B1-Motion>", self.drag)
-
-        lights = tk.Frame(self.header, bg="#05070a")
-        lights.pack(side="left", padx=(0, 8))
-        for color, cmd in [("#f05a72", self.close), ("#e0a942", self.minimize), ("#39b86f", self.toggle_topmost)]:
-            dot = tk.Label(lights, text="●", fg=color, bg="#05070a", font=("Segoe UI", 10, "bold"), cursor="hand2")
-            dot.pack(side="left", padx=(0, 3))
-            dot.bind("<Button-1>", lambda _event, fn=cmd: fn())
 
         self.title = tk.Label(
             self.header,
@@ -447,7 +445,7 @@ class TinyStockWindow:
             )
             btn.pack(side="right", padx=(4, 0))
 
-        self.body = tk.Frame(self.inner, bg="#05070a", padx=6, pady=2)
+        self.body = tk.Frame(self.root, bg="#05070a", padx=6, pady=2)
         self.body.pack(fill="both", expand=True)
 
         self.root.bind("<Button-3>", self.menu)
@@ -458,38 +456,26 @@ class TinyStockWindow:
         menu.add_command(label="Add code", command=self.add_symbol)
         menu.add_command(label="Refresh now", command=self.force_refresh)
         menu.add_separator()
+        menu.add_command(label="Settings...", command=self.settings_panel)
         menu.add_command(label="Topmost on/off", command=self.toggle_topmost)
-        menu.add_command(label="Opacity slider", command=self.opacity_panel)
         menu.add_command(label="Opacity 100%", command=lambda: self.set_opacity(1.0))
         menu.add_command(label="Opacity 90%", command=lambda: self.set_opacity(0.9))
+        menu.add_command(label="Tiny mode", command=lambda: self.set_size_mode("tiny"))
+        menu.add_command(label="Normal mode", command=lambda: self.set_size_mode("normal"))
         menu.add_command(label="Reset symbols", command=self.reset_symbols)
         menu.tk_popup(event.x_root, event.y_root)
 
-    def start_drag(self, event):
-        self.drag_origin = (event.x_root, event.y_root, self.root.winfo_x(), self.root.winfo_y())
-
-    def drag(self, event):
-        if not self.drag_origin:
-            return
-        sx, sy, wx, wy = self.drag_origin
-        self.root.geometry(f"+{wx + event.x_root - sx}+{wy + event.y_root - sy}")
-
-    def minimize(self):
-        self.root.overrideredirect(False)
-        self.root.iconify()
-        self.root.after(300, lambda: self.root.overrideredirect(True))
-
-    def opacity_panel(self):
+    def settings_panel(self):
         panel = tk.Toplevel(self.root)
-        panel.title("Opacity")
+        panel.title("Tiny Stocks Settings")
         panel.configure(bg="#0b0f16")
-        panel.geometry(f"220x70+{self.root.winfo_x()+20}+{self.root.winfo_y()+40}")
+        panel.geometry(f"260x150+{self.root.winfo_x()+24}+{self.root.winfo_y()+48}")
         panel.attributes("-topmost", True)
-        tk.Label(panel, text="Opacity", fg="#f2f5fb", bg="#0b0f16", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=10, pady=(8, 0))
+        tk.Label(panel, text="Opacity", fg="#f2f5fb", bg="#0b0f16", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=12, pady=(10, 0))
         value = tk.DoubleVar(value=float(self.root.attributes("-alpha")))
         slider = tk.Scale(
             panel,
-            from_=0.55,
+            from_=0.7,
             to=1.0,
             resolution=0.01,
             orient="horizontal",
@@ -500,7 +486,24 @@ class TinyStockWindow:
             troughcolor="#1a2230",
             highlightthickness=0,
         )
-        slider.pack(fill="x", padx=10)
+        slider.pack(fill="x", padx=12)
+
+        tk.Label(panel, text="Size mode", fg="#f2f5fb", bg="#0b0f16", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=12, pady=(6, 0))
+        row = tk.Frame(panel, bg="#0b0f16")
+        row.pack(fill="x", padx=12, pady=6)
+        tk.Button(row, text="tiny", command=lambda: self.set_size_mode("tiny"), bg="#121823", fg="#e8edf6", relief="flat").pack(side="left", fill="x", expand=True, padx=(0, 6))
+        tk.Button(row, text="normal", command=lambda: self.set_size_mode("normal"), bg="#121823", fg="#e8edf6", relief="flat").pack(side="left", fill="x", expand=True)
+
+    def set_size_mode(self, mode):
+        self.mode = "tiny" if mode == "tiny" else "normal"
+        self.config["size_mode"] = self.mode
+        self.config["geometry"] = ""
+        save_config(self.config)
+        geometry_size = GEOMETRIES[self.mode]
+        self.root.minsize(190 if self.mode == "tiny" else 280, 220 if self.mode == "tiny" else 360)
+        self.root.geometry(f"{geometry_size}+{self.root.winfo_x()}+{self.root.winfo_y()}")
+        self.render_rows()
+        self.apply_data(self.quotes, self.trends, None)
 
     def set_row_metric(self, secid, metric):
         if metric not in METRICS:
@@ -548,7 +551,7 @@ class TinyStockWindow:
             child.destroy()
         self.rows.clear()
         for secid in self.symbols:
-            row = StockRow(self.body, secid, self.remove_symbol, self.set_row_metric, self.row_drag_event)
+            row = StockRow(self.body, secid, self.remove_symbol, self.set_row_metric, self.row_drag_event, self.mode)
             row.set_main_metric(self.display_metrics.get(secid, "price"))
             row.pack(fill="x", pady=(0, 6))
             self.rows[secid] = row
@@ -644,6 +647,7 @@ class TinyStockWindow:
         self.config["geometry"] = self.root.geometry()
         self.config["symbols"] = self.symbols
         self.config["display_metrics"] = self.display_metrics
+        self.config["size_mode"] = self.mode
         save_config(self.config)
         self.root.destroy()
 
