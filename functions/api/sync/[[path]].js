@@ -27,18 +27,22 @@ const cleanPayload = value => {
   };
 };
 
-export async function onRequestGet({ request, env }) {
-  const id = cleanId(new URL(request.url).searchParams.get("id"));
+export async function onRequest({ request, env }) {
+  const url = new URL(request.url);
+  const id = cleanId(url.searchParams.get("id"));
   if (!id) return json({ error: "missing id" }, { status: 400 });
-  const data = await env.STOCK_SYNC.get(`sync:${id}`, "json");
-  if (!data) return json({ error: "not found" }, { status: 404 });
-  return json(data);
-}
 
-export async function onRequestPut({ request, env }) {
-  const id = cleanId(new URL(request.url).searchParams.get("id"));
-  if (!id) return json({ error: "missing id" }, { status: 400 });
-  const payload = cleanPayload(await request.json().catch(() => ({})));
-  await env.STOCK_SYNC.put(`sync:${id}`, JSON.stringify(payload));
-  return json({ ok: true, ...payload });
+  if (request.method === "GET") {
+    const data = await env.STOCK_SYNC.get(`sync:${id}`, "json");
+    if (!data) return json({ error: "not found" }, { status: 404 });
+    return json(data);
+  }
+
+  if (request.method === "PUT" || request.method === "POST") {
+    const payload = cleanPayload(await request.json().catch(() => ({})));
+    await env.STOCK_SYNC.put(`sync:${id}`, JSON.stringify(payload));
+    return json({ ok: true, ...payload });
+  }
+
+  return json({ error: "method not allowed" }, { status: 405 });
 }
