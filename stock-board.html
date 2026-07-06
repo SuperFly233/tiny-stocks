@@ -1,0 +1,1774 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>轻量自选股看板</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f7f3ea;
+      --ink: #181613;
+      --muted: #70695d;
+      --line: #d8d0c3;
+      --panel: #fffdf8;
+      --red: #c83232;
+      --green: #12805c;
+      --blue: #2457a7;
+      --amber: #c97912;
+      --shadow: 0 14px 42px rgba(45, 38, 27, .12);
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+      background:
+        linear-gradient(90deg, rgba(24, 22, 19, .035) 1px, transparent 1px),
+        linear-gradient(rgba(24, 22, 19, .03) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+    }
+
+    button, input, select { font: inherit; }
+
+    .shell {
+      width: min(1420px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 22px 0 34px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto;
+      gap: 18px;
+      align-items: end;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--ink);
+    }
+
+    h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(28px, 4vw, 58px);
+      font-weight: 700;
+      line-height: .96;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .field {
+      height: 38px;
+      border: 1px solid var(--ink);
+      border-radius: var(--radius);
+      background: var(--panel);
+      color: var(--ink);
+      padding: 0 11px;
+      outline: none;
+      box-shadow: 3px 3px 0 rgba(24, 22, 19, .1);
+    }
+
+    .symbol-input { width: min(280px, 68vw); }
+
+    .searchbox {
+      position: relative;
+    }
+
+    .suggestions {
+      position: absolute;
+      z-index: 6;
+      top: calc(100% + 6px);
+      left: 0;
+      width: min(380px, 86vw);
+      display: none;
+      border: 1px solid var(--ink);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: 5px 5px 0 rgba(24, 22, 19, .18), var(--shadow);
+      overflow: hidden;
+    }
+
+    .suggestions.open { display: block; }
+
+    .suggestion {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 9px 11px;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .suggestion:last-child { border-bottom: 0; }
+    .suggestion:hover { background: #f2eadb; }
+
+    .suggestion-name {
+      font-weight: 800;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .suggestion-meta {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .suggestion-code {
+      color: var(--blue);
+      font-family: Consolas, monospace;
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .btn {
+      width: 38px;
+      height: 38px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid var(--ink);
+      border-radius: var(--radius);
+      background: var(--ink);
+      color: var(--panel);
+      cursor: pointer;
+      box-shadow: 3px 3px 0 rgba(24, 22, 19, .16);
+      transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+
+    .btn:hover {
+      transform: translate(-1px, -1px);
+      box-shadow: 4px 4px 0 rgba(24, 22, 19, .2);
+    }
+
+    .btn.secondary {
+      background: var(--panel);
+      color: var(--ink);
+    }
+
+    .btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      stroke-width: 2.2;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .statusbar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      margin: 14px 0 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .ticker {
+      overflow: hidden;
+      white-space: nowrap;
+      border-left: 5px solid var(--ink);
+      padding-left: 10px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      gap: 12px;
+    }
+
+    .card {
+      position: relative;
+      min-height: 292px;
+      padding: 15px;
+      border: 1px solid var(--ink);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 5px;
+      background: var(--blue);
+    }
+
+    .card.up::before { background: var(--red); }
+    .card.down::before { background: var(--green); }
+
+    .card-head {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: start;
+      margin-top: 2px;
+    }
+
+    .name {
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.2;
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+    }
+
+    .code {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0;
+    }
+
+    .remove {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 3px;
+    }
+
+    .price-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 18px 0 6px;
+    }
+
+    .price {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 34px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .change {
+      min-width: 86px;
+      text-align: right;
+      font-weight: 800;
+      font-size: 15px;
+    }
+
+    .up .price, .up .change { color: var(--red); }
+    .down .price, .down .change { color: var(--green); }
+
+    .chart-wrap {
+      height: 104px;
+      margin: 10px 0 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(to bottom, transparent calc(50% - 1px), rgba(24, 22, 19, .12) 50%, transparent calc(50% + 1px)),
+        #fbfaf5;
+      overflow: hidden;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .facts {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--line);
+    }
+
+    .fact {
+      min-width: 0;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.1;
+    }
+
+    .value {
+      margin-top: 4px;
+      font-size: 13px;
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .empty {
+      display: none;
+      place-items: center;
+      min-height: 240px;
+      border: 1px dashed var(--muted);
+      border-radius: var(--radius);
+      color: var(--muted);
+      background: rgba(255, 253, 248, .7);
+    }
+
+    .grid:empty + .empty { display: grid; }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 20px;
+      transform: translateX(-50%);
+      max-width: min(520px, calc(100% - 28px));
+      padding: 10px 13px;
+      border: 1px solid var(--ink);
+      border-radius: var(--radius);
+      background: var(--ink);
+      color: var(--panel);
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s ease;
+      z-index: 5;
+    }
+
+    .toast.show { opacity: 1; }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(24, 22, 19, .42);
+      z-index: 4;
+    }
+
+    .modal.open { display: flex; }
+
+    .detail {
+      width: min(1120px, 100%);
+      max-height: min(820px, calc(100vh - 36px));
+      display: grid;
+      grid-template-rows: auto auto minmax(260px, 1fr) auto;
+      border: 2px solid var(--ink);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: 0 24px 70px rgba(24, 22, 19, .32);
+      overflow: hidden;
+    }
+
+    .detail-head {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: start;
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .detail-title {
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1.1;
+    }
+
+    .detail-sub {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .detail-close {
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--ink);
+      border-radius: var(--radius);
+      background: var(--ink);
+      color: var(--panel);
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      padding: 10px 12px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .tab {
+      flex: 0 0 auto;
+      height: 32px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfaf5;
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .tab.active {
+      border-color: var(--ink);
+      background: var(--ink);
+      color: var(--panel);
+    }
+
+    .detail-canvas-wrap {
+      min-height: 300px;
+      padding: 12px;
+      background:
+        linear-gradient(to bottom, transparent calc(50% - 1px), rgba(24, 22, 19, .1) 50%, transparent calc(50% + 1px)),
+        #fbfaf5;
+    }
+
+    .detail-canvas {
+      width: 100%;
+      height: 100%;
+      min-height: 300px;
+      display: block;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fffdf8;
+    }
+
+    .detail-meta {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(80px, 1fr));
+      gap: 8px;
+      padding: 10px 12px 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    /* Compact quote terminal skin */
+    :root {
+      --paper: #f5f7fb;
+      --ink: #101a3d;
+      --muted: #858da8;
+      --line: #e9edf5;
+      --panel: #ffffff;
+      --red: #f04f4f;
+      --green: #35ad63;
+      --blue: #3158f4;
+      --amber: #eaa83a;
+      --shadow: 0 8px 28px rgba(22, 32, 66, .08);
+      --radius: 7px;
+    }
+
+    body {
+      background: #f5f7fb;
+      font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+    }
+
+    .shell {
+      width: min(1100px, 100%);
+      min-height: 100vh;
+      padding: 0 0 58px;
+      background: var(--panel);
+      box-shadow: 0 0 0 1px rgba(16, 26, 61, .04), 0 24px 70px rgba(22, 32, 66, .08);
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 24px 10px;
+      border-bottom: 0;
+      background: rgba(255, 255, 255, .94);
+      backdrop-filter: blur(14px);
+    }
+
+    header section:first-child {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 190px;
+    }
+
+    header section:first-child::before {
+      content: "股";
+      width: 52px;
+      height: 52px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #fff;
+      font-weight: 900;
+      font-size: 19px;
+      background: radial-gradient(circle at 35% 30%, #8fc6ff 0 18%, #3158f4 54%, #173ca7 100%);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.35), 0 8px 18px rgba(49,88,244,.24);
+    }
+
+    h1 {
+      display: inline;
+      font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+      font-size: 28px;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    h1 br { display: none; }
+
+    .subtitle {
+      display: none;
+    }
+
+    .toolbar {
+      justify-content: flex-end;
+      gap: 9px;
+    }
+
+    .field {
+      height: 36px;
+      border: 1px solid #dfe5f0;
+      background: #f9fbff;
+      color: var(--ink);
+      box-shadow: none;
+    }
+
+    .symbol-input {
+      width: min(390px, 42vw);
+    }
+
+    .btn {
+      width: 36px;
+      height: 36px;
+      border: 0;
+      background: #eef2ff;
+      color: var(--blue);
+      box-shadow: none;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(49, 88, 244, .16);
+    }
+
+    .btn.secondary {
+      background: transparent;
+      color: #9aa2b7;
+    }
+
+    .suggestions {
+      border-color: #dfe5f0;
+      box-shadow: 0 18px 36px rgba(22, 32, 66, .16);
+    }
+
+    .suggestion:hover {
+      background: #f3f6ff;
+    }
+
+    .statusbar {
+      margin: 0;
+      padding: 4px 24px 12px;
+      grid-template-columns: 1fr auto;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+    }
+
+    .ticker {
+      border-left: 0;
+      padding-left: 0;
+      font-size: 12px;
+    }
+
+    .market-strip {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(118px, 1fr));
+      gap: 16px;
+      padding: 12px 24px 16px;
+      border-bottom: 1px solid var(--line);
+      overflow-x: auto;
+    }
+
+    .market-strip:empty {
+      display: none;
+    }
+
+    .index-chip {
+      min-width: 138px;
+      padding: 10px 12px 9px;
+      border-radius: 6px;
+      text-align: center;
+      background: #eaf6f0;
+      cursor: pointer;
+    }
+
+    .index-chip.up {
+      background: #fff0f0;
+    }
+
+    .index-chip.flat {
+      background: #eef1fb;
+    }
+
+    .index-name {
+      font-size: 13px;
+      font-weight: 900;
+      color: var(--ink);
+    }
+
+    .index-price {
+      margin-top: 6px;
+      font-family: Consolas, "Microsoft YaHei UI", monospace;
+      font-size: 22px;
+      line-height: 1;
+      color: var(--green);
+    }
+
+    .index-chip.up .index-price,
+    .index-chip.up .index-change {
+      color: var(--red);
+    }
+
+    .index-chip.flat .index-price,
+    .index-chip.flat .index-change {
+      color: #a1a8bb;
+    }
+
+    .index-change {
+      margin-top: 6px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      color: var(--green);
+      font-family: Consolas, "Microsoft YaHei UI", monospace;
+      font-size: 16px;
+    }
+
+    .view-tabs {
+      display: flex;
+      gap: 20px;
+      padding: 12px 24px 10px;
+      border-bottom: 1px solid var(--line);
+      color: #8a91ad;
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .view-tabs span.active {
+      position: relative;
+      color: var(--ink);
+    }
+
+    .view-tabs span.active::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -10px;
+      width: 30px;
+      height: 3px;
+      border-radius: 3px;
+      background: var(--blue);
+      transform: translateX(-50%);
+    }
+
+    .quote-header {
+      display: grid;
+      grid-template-columns: minmax(190px, 1.4fr) .8fr .8fr .8fr .8fr 140px 34px;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 24px 8px;
+      border-bottom: 1px solid var(--line);
+      color: #737c9b;
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .quote-header div:first-child {
+      text-align: left;
+    }
+
+    .grid {
+      display: block;
+      padding: 0 0 10px;
+    }
+
+    .card {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(190px, 1.4fr) .8fr .8fr .8fr .8fr 140px 34px;
+      gap: 10px;
+      align-items: center;
+      padding: 11px 24px;
+      border: 0;
+      border-bottom: 1px solid #f0f2f7;
+      border-radius: 0;
+      background: var(--panel);
+      box-shadow: none;
+      overflow: visible;
+      transition: background .14s ease;
+    }
+
+    .card:hover {
+      background: #f8faff;
+    }
+
+    .card::before {
+      display: none;
+    }
+
+    .card-head {
+      display: block;
+      margin-top: 0;
+      min-width: 0;
+    }
+
+    .name {
+      font-size: 17px;
+      font-weight: 900;
+      color: var(--ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .code {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+      color: #7f87a5;
+      font-size: 13px;
+    }
+
+    .code::after {
+      content: "已更新";
+      padding: 1px 5px;
+      border: 1px solid #8fa3ff;
+      border-radius: 4px;
+      color: #3158f4;
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .price-row {
+      display: contents;
+      margin: 0;
+    }
+
+    .price {
+      font-family: Consolas, "Microsoft YaHei UI", monospace;
+      font-size: 24px;
+      line-height: 1;
+      text-align: right;
+      color: var(--ink);
+    }
+
+    .change {
+      min-width: 0;
+      font-family: Consolas, "Microsoft YaHei UI", monospace;
+      font-size: 20px;
+      line-height: 1.35;
+      text-align: right;
+      font-weight: 900;
+    }
+
+    .chart-wrap {
+      height: 44px;
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .facts {
+      display: contents;
+      padding-top: 0;
+      border-top: 0;
+    }
+
+    .fact {
+      text-align: right;
+    }
+
+    .label {
+      display: none;
+    }
+
+    .value {
+      margin-top: 0;
+      color: #7f87a5;
+      font-family: Consolas, "Microsoft YaHei UI", monospace;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .facts .fact:nth-child(1),
+    .facts .fact:nth-child(2),
+    .facts .fact:nth-child(3) {
+      display: none;
+    }
+
+    .remove {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      color: #b0b6c8;
+      border-radius: 50%;
+    }
+
+    .remove:hover {
+      background: #eef2ff;
+      color: var(--blue);
+    }
+
+    .empty {
+      margin: 22px 24px;
+      background: #f8faff;
+      border-color: #dfe5f0;
+    }
+
+    .modal {
+      background: rgba(14, 21, 45, .42);
+    }
+
+    .detail {
+      border: 0;
+      border-radius: 10px;
+      box-shadow: 0 28px 90px rgba(14, 21, 45, .34);
+    }
+
+    .detail-head {
+      padding: 16px 18px 12px;
+    }
+
+    .detail-close {
+      border: 0;
+      background: #eef2ff;
+      color: var(--blue);
+    }
+
+    @media (max-width: 780px) {
+      header {
+        grid-template-columns: 1fr;
+        align-items: start;
+        padding: 12px 14px 8px;
+      }
+
+      .toolbar {
+        justify-content: flex-start;
+      }
+
+      .symbol-input {
+        width: min(100%, 330px);
+      }
+
+      .statusbar {
+        grid-template-columns: 1fr;
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      .market-strip {
+        grid-auto-flow: column;
+        grid-auto-columns: 148px;
+        grid-template-columns: none;
+        gap: 10px;
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      .view-tabs {
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      .quote-header {
+        grid-template-columns: minmax(150px, 1.3fr) .7fr .7fr .7fr 30px;
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      .quote-header div:nth-child(5),
+      .quote-header div:nth-child(6) {
+        display: none;
+      }
+
+      .card {
+        grid-template-columns: minmax(150px, 1.3fr) .7fr .7fr .7fr 30px;
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      .facts,
+      .chart-wrap {
+        display: none;
+      }
+
+      .detail {
+        max-height: calc(100vh - 20px);
+      }
+
+      .detail-meta {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 390px) {
+      .shell { width: min(100% - 18px, 1420px); }
+      .price { font-size: 19px; }
+      .change { font-size: 17px; }
+      .name { font-size: 15px; }
+      .detail-meta { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <section>
+        <h1>自选股<br>实时看板</h1>
+        <div class="subtitle">A 股与指数 · 批量刷新 · 当日分时 · 本地保存</div>
+      </section>
+      <section class="toolbar" aria-label="工具栏">
+        <div class="searchbox">
+          <input id="symbolInput" class="field symbol-input" autocomplete="off" placeholder="搜名称/代码/拼音，如 中科仪 / 920186 / zky" />
+          <div id="suggestions" class="suggestions"></div>
+        </div>
+        <button id="addBtn" class="btn" title="添加">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <input id="intervalInput" class="field" type="number" min="1" step="1" value="5" title="刷新间隔（秒）" style="width: 92px" />
+        <button id="refreshBtn" class="btn secondary" title="立即刷新">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+        </button>
+        <button id="resetBtn" class="btn secondary" title="恢复默认">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/></svg>
+        </button>
+      </section>
+    </header>
+
+    <section class="statusbar">
+      <div id="ticker" class="ticker">准备刷新行情...</div>
+      <div id="clock">--:--:--</div>
+    </section>
+
+    <section id="marketStrip" class="market-strip"></section>
+    <section class="view-tabs"><span class="active">自选</span><span>指数</span><span>详情</span></section>
+    <section class="quote-header">
+      <div>自选管理</div>
+      <div>最新</div>
+      <div>涨跌幅</div>
+      <div>涨跌额</div>
+      <div>成交额</div>
+      <div>当日分时</div>
+      <div></div>
+    </section>
+    <section id="grid" class="grid" aria-live="polite"></section>
+    <section class="empty">暂无自选项，输入股票或指数代码添加。</section>
+  </main>
+
+  <section id="detailModal" class="modal" aria-hidden="true">
+    <article class="detail">
+      <div class="detail-head">
+        <div>
+          <div id="detailTitle" class="detail-title">--</div>
+          <div id="detailSub" class="detail-sub">点击卡片进入详情，Esc 关闭</div>
+        </div>
+        <button id="detailClose" class="detail-close" title="关闭">×</button>
+      </div>
+      <div id="detailTabs" class="tabs">
+        <button class="tab active" data-view="today">当日</button>
+        <button class="tab" data-view="five">5 日分时</button>
+        <button class="tab" data-view="day">日 K</button>
+        <button class="tab" data-view="week">周 K</button>
+        <button class="tab" data-view="month">月 K</button>
+        <button class="tab" data-view="year">年 K</button>
+      </div>
+      <div class="detail-canvas-wrap">
+        <canvas id="detailCanvas" class="detail-canvas"></canvas>
+      </div>
+      <div id="detailMeta" class="detail-meta"></div>
+    </article>
+  </section>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script>
+    const STORAGE_KEY = "lite-stock-board-symbols-v1";
+    const REFRESH_KEY = "lite-stock-board-refresh-v1";
+    const API_QUOTE = "https://push2.eastmoney.com/api/qt/ulist.np/get";
+    const API_TREND = "https://push2his.eastmoney.com/api/qt/stock/trends2/get";
+    const API_KLINE = "https://push2his.eastmoney.com/api/qt/stock/kline/get";
+    const API_SEARCH = "https://searchapi.eastmoney.com/api/suggest/get";
+    const SEARCH_TOKEN = "D43BF722C8E33BDC906FB84D85E326E8";
+    const DEFAULT_SYMBOLS = ["1.000001", "0.399001", "0.399006", "1.600519", "0.000001"];
+
+    const els = {
+      grid: document.querySelector("#grid"),
+      marketStrip: document.querySelector("#marketStrip"),
+      ticker: document.querySelector("#ticker"),
+      clock: document.querySelector("#clock"),
+      input: document.querySelector("#symbolInput"),
+      suggestions: document.querySelector("#suggestions"),
+      add: document.querySelector("#addBtn"),
+      refresh: document.querySelector("#refreshBtn"),
+      reset: document.querySelector("#resetBtn"),
+      interval: document.querySelector("#intervalInput"),
+      toast: document.querySelector("#toast"),
+      modal: document.querySelector("#detailModal"),
+      detailTitle: document.querySelector("#detailTitle"),
+      detailSub: document.querySelector("#detailSub"),
+      detailTabs: document.querySelector("#detailTabs"),
+      detailCanvas: document.querySelector("#detailCanvas"),
+      detailMeta: document.querySelector("#detailMeta"),
+      detailClose: document.querySelector("#detailClose")
+    };
+
+    let symbols = loadSymbols();
+    let quoteMap = new Map();
+    let trendMap = new Map();
+    let detailState = { secid: null, view: "today", loading: false };
+    let detailCache = new Map();
+    let suggestions = [];
+    let searchTimer = null;
+    let refreshTimer = null;
+
+    function loadSymbols() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+        if (Array.isArray(saved) && saved.length) {
+          return [...new Set(saved.map(secid => {
+            const text = String(secid);
+            return /^1\.[89]\d{5}$/.test(text) ? `0.${text.slice(2)}` : text;
+          }))];
+        }
+        return DEFAULT_SYMBOLS.slice();
+      } catch {
+        return DEFAULT_SYMBOLS.slice();
+      }
+    }
+
+    function saveSymbols() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(symbols));
+    }
+
+    function loadRefreshSeconds() {
+      const n = Number(localStorage.getItem(REFRESH_KEY));
+      return Number.isFinite(n) && n >= 1 ? Math.round(n) : 5;
+    }
+
+    function saveRefreshSeconds() {
+      const seconds = Math.max(1, Math.round(Number(els.interval.value) || 5));
+      els.interval.value = seconds;
+      localStorage.setItem(REFRESH_KEY, String(seconds));
+      return seconds;
+    }
+
+    function normalizeSymbol(raw) {
+      const text = String(raw || "").trim().toLowerCase().replace(/\s+/g, "");
+      if (!text) return null;
+      if (/^[01]\.\d{6}$/.test(text)) return text;
+      if (/^sh\d{6}$/.test(text)) return `1.${text.slice(2)}`;
+      if (/^sz\d{6}$/.test(text)) return `0.${text.slice(2)}`;
+      if (/^\d{6}$/.test(text)) {
+        if (text.startsWith("6") || text.startsWith("5")) return `1.${text}`;
+        return `0.${text}`;
+      }
+      return null;
+    }
+
+    function secidToDisplay(secid) {
+      const [market, code] = secid.split(".");
+      const prefix = market === "1" ? "SH" : /^[89]\d{5}$/.test(code) ? "BJ" : "SZ";
+      return `${prefix} ${code}`;
+    }
+
+    function toast(message) {
+      els.toast.textContent = message;
+      els.toast.classList.add("show");
+      clearTimeout(toast.hideTimer);
+      toast.hideTimer = setTimeout(() => els.toast.classList.remove("show"), 2600);
+    }
+
+    function formatNum(value, digits = 2) {
+      const n = Number(value);
+      if (!Number.isFinite(n) || n === -1) return "--";
+      return n.toFixed(digits);
+    }
+
+    function formatAmount(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n) || n <= 0) return "--";
+      if (n >= 1e12) return `${(n / 1e12).toFixed(2)} 万亿`;
+      if (n >= 1e8) return `${(n / 1e8).toFixed(2)} 亿`;
+      if (n >= 1e4) return `${(n / 1e4).toFixed(2)} 万`;
+      return n.toFixed(0);
+    }
+
+    function quoteClass(q) {
+      const p = Number(q?.f3);
+      if (p > 0) return "up";
+      if (p < 0) return "down";
+      return "flat";
+    }
+
+    function isIndexSecid(secid) {
+      return ["1.000001", "0.399001", "0.399006", "1.000300", "1.000016", "0.399300"].includes(secid);
+    }
+
+    async function fetchJson(url, params) {
+      const qs = new URLSearchParams(params);
+      const res = await fetch(`${url}?${qs.toString()}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+
+    async function searchStocks(keyword) {
+      const input = String(keyword || "").trim();
+      if (!input) return [];
+      const data = await fetchJsonp(API_SEARCH, {
+        input,
+        type: "14",
+        token: SEARCH_TOKEN
+      });
+      return (data?.QuotationCodeTable?.Data || [])
+        .filter(item => item?.QuoteID && /^\d+\.\d{6}$/.test(item.QuoteID))
+        .slice(0, 8)
+        .map(item => ({
+          secid: item.QuoteID,
+          code: item.Code,
+          name: item.Name,
+          pinyin: item.PinYin,
+          market: item.SecurityTypeName || item.MarketType || "",
+          classify: item.Classify || ""
+        }));
+    }
+
+    function fetchJsonp(url, params) {
+      return new Promise((resolve, reject) => {
+        const callbackName = `stockSearch_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        const script = document.createElement("script");
+        const clean = () => {
+          delete window[callbackName];
+          script.remove();
+        };
+        window[callbackName] = data => {
+          clean();
+          resolve(data);
+        };
+        script.onerror = () => {
+          clean();
+          reject(new Error("搜索接口不可用"));
+        };
+        const qs = new URLSearchParams({ ...params, cb: callbackName });
+        script.src = `${url}?${qs.toString()}`;
+        document.head.appendChild(script);
+      });
+    }
+
+    function renderSuggestions(items) {
+      suggestions = items;
+      if (!items.length) {
+        els.suggestions.classList.remove("open");
+        els.suggestions.innerHTML = "";
+        return;
+      }
+      els.suggestions.innerHTML = items.map((item, index) => `
+        <button class="suggestion" data-index="${index}" type="button">
+          <span>
+            <span class="suggestion-name">${item.name || item.code}</span>
+            <div class="suggestion-meta">${item.pinyin || "--"} · ${item.market || item.classify || "--"}</div>
+          </span>
+          <span class="suggestion-code">${secidToDisplay(item.secid)}</span>
+        </button>
+      `).join("");
+      els.suggestions.classList.add("open");
+    }
+
+    function scheduleSearch() {
+      clearTimeout(searchTimer);
+      const keyword = els.input.value.trim();
+      if (!keyword) {
+        renderSuggestions([]);
+        return;
+      }
+      searchTimer = setTimeout(async () => {
+        try {
+          renderSuggestions(await searchStocks(keyword));
+        } catch {
+          renderSuggestions([]);
+        }
+      }, 180);
+    }
+
+    async function resolveInputToSecid() {
+      const keyword = els.input.value.trim();
+      if (!keyword) return null;
+      if (suggestions.length) return suggestions[0].secid;
+      try {
+        const found = await searchStocks(keyword);
+        if (found.length) return found[0].secid;
+      } catch {
+        // Fall back to local code heuristics when search is unavailable.
+      }
+      return normalizeSymbol(keyword);
+    }
+
+    async function fetchTrend(secid, days = 1) {
+      const data = await fetchJson(API_TREND, {
+        secid,
+        fields1: "f1,f2,f3",
+        fields2: "f51,f53",
+        iscr: "0",
+        iscca: "0",
+        ndays: String(days)
+      });
+      return (data?.data?.trends || [])
+        .map(row => {
+          const [time, price] = String(row).split(",");
+          return { time, price: Number(price) };
+        })
+        .filter(p => Number.isFinite(p.price));
+    }
+
+    async function fetchKline(secid, klt, begin = "20180101") {
+      const data = await fetchJson(API_KLINE, {
+        secid,
+        fields1: "f1,f2,f3",
+        fields2: "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
+        klt: String(klt),
+        fqt: "1",
+        beg: begin,
+        end: "20500101"
+      });
+      return (data?.data?.klines || [])
+        .map(row => {
+          const [date, open, close, high, low, volume, amount, amplitude, pct, change, turnover] = String(row).split(",");
+          return {
+            date,
+            open: Number(open),
+            close: Number(close),
+            high: Number(high),
+            low: Number(low),
+            volume: Number(volume),
+            amount: Number(amount),
+            pct: Number(pct),
+            change: Number(change),
+            turnover: Number(turnover)
+          };
+        })
+        .filter(k => [k.open, k.close, k.high, k.low].every(Number.isFinite));
+    }
+
+    function aggregateYearly(monthKlines) {
+      const groups = new Map();
+      monthKlines.forEach(k => {
+        const year = k.date.slice(0, 4);
+        if (!groups.has(year)) groups.set(year, []);
+        groups.get(year).push(k);
+      });
+      return [...groups.entries()].map(([year, items]) => {
+        const first = items[0];
+        const last = items[items.length - 1];
+        return {
+          date: year,
+          open: first.open,
+          close: last.close,
+          high: Math.max(...items.map(k => k.high)),
+          low: Math.min(...items.map(k => k.low)),
+          volume: items.reduce((sum, k) => sum + (k.volume || 0), 0),
+          amount: items.reduce((sum, k) => sum + (k.amount || 0), 0),
+          pct: first.open ? (last.close - first.open) / first.open * 100 : 0,
+          change: last.close - first.open,
+          turnover: items.reduce((sum, k) => sum + (k.turnover || 0), 0)
+        };
+      });
+    }
+
+    async function refreshQuotes() {
+      if (!symbols.length) {
+        quoteMap.clear();
+        render();
+        return;
+      }
+
+      const data = await fetchJson(API_QUOTE, {
+        fltt: "2",
+        secids: symbols.join(","),
+        fields: "f12,f13,f14,f2,f3,f4,f5,f6,f15,f16,f17,f18,f20,f21"
+      });
+      const list = data?.data?.diff || [];
+      quoteMap = new Map(list.map(item => [`${item.f13}.${item.f12}`, item]));
+      updateTicker(list);
+      render();
+    }
+
+    async function refreshTrends() {
+      const jobs = symbols.map(async secid => {
+        try {
+          trendMap.set(secid, await fetchTrend(secid, 1));
+        } catch {
+          trendMap.set(secid, []);
+        }
+      });
+      await Promise.allSettled(jobs);
+      renderCharts();
+    }
+
+    async function refreshAll() {
+      els.refresh.disabled = true;
+      els.ticker.textContent = "正在刷新行情...";
+      try {
+        await refreshQuotes();
+        await refreshTrends();
+        toast("行情已刷新");
+      } catch (err) {
+        els.ticker.textContent = "刷新失败：可能是网络或行情接口暂时不可用";
+        toast(`刷新失败：${err.message}`);
+      } finally {
+        els.refresh.disabled = false;
+        updateClock();
+      }
+    }
+
+    function updateTicker(list) {
+      if (!list.length) {
+        els.ticker.textContent = "未获取到行情数据，请检查代码。";
+        return;
+      }
+      els.ticker.textContent = list.map(q => {
+        const sign = Number(q.f3) > 0 ? "+" : "";
+        return `${q.f14} ${formatNum(q.f2)} ${sign}${formatNum(q.f3)}%`;
+      }).join("    ·    ");
+    }
+
+    function render() {
+      const indexSymbols = symbols.filter(secid => isIndexSecid(secid));
+      els.marketStrip.innerHTML = indexSymbols.map(secid => {
+        const q = quoteMap.get(secid);
+        const cls = quoteClass(q);
+        const sign = Number(q?.f3) > 0 ? "+" : "";
+        return `
+          <button class="index-chip ${cls}" data-index-open="${secid}" type="button">
+            <div class="index-name">${q?.f14 || secidToDisplay(secid)}</div>
+            <div class="index-price">${formatNum(q?.f2)}</div>
+            <div class="index-change"><span>${sign}${formatNum(q?.f4)}</span><span>${sign}${formatNum(q?.f3)}%</span></div>
+          </button>
+        `;
+      }).join("");
+
+      const rowSymbols = symbols.filter(secid => !isIndexSecid(secid));
+      els.grid.innerHTML = rowSymbols.map(secid => {
+        const q = quoteMap.get(secid);
+        const cls = quoteClass(q);
+        const sign = Number(q?.f3) > 0 ? "+" : "";
+        return `
+          <article class="card ${cls}" data-secid="${secid}">
+            <div class="card-head">
+              <div>
+                <div class="name">${q?.f14 || "等待数据"}</div>
+                <div class="code">${secidToDisplay(secid)}</div>
+              </div>
+            </div>
+            <div class="price-row">
+              <div class="price">${formatNum(q?.f2)}</div>
+              <div class="change">${sign}${formatNum(q?.f3)}%</div>
+              <div class="change">${sign}${formatNum(q?.f4)}</div>
+            </div>
+            <div class="facts">
+              <div class="fact"><div class="label">今开</div><div class="value">${formatNum(q?.f17)}</div></div>
+              <div class="fact"><div class="label">最高</div><div class="value">${formatNum(q?.f15)}</div></div>
+              <div class="fact"><div class="label">最低</div><div class="value">${formatNum(q?.f16)}</div></div>
+              <div class="fact"><div class="label">成交额</div><div class="value">${formatAmount(q?.f6)}</div></div>
+            </div>
+            <div class="chart-wrap">
+              <canvas data-chart="${secid}" aria-label="${q?.f14 || secid} 当日分时图"></canvas>
+            </div>
+            <button class="remove" title="移除" data-remove="${secid}">
+              <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </article>
+        `;
+      }).join("");
+      renderCharts();
+    }
+
+    function renderCharts() {
+      document.querySelectorAll("canvas[data-chart]").forEach(canvas => {
+        drawChart(canvas, trendMap.get(canvas.dataset.chart) || [], quoteMap.get(canvas.dataset.chart));
+      });
+    }
+
+    function drawChart(canvas, points, quote) {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      const ctx = canvas.getContext("2d");
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+
+      const pad = 9;
+      const w = rect.width;
+      const h = rect.height;
+      const color = Number(quote?.f3) >= 0 ? "#c83232" : "#12805c";
+      const values = points.map(p => p.price);
+
+      if (values.length < 2) {
+        ctx.fillStyle = "#70695d";
+        ctx.font = "12px Microsoft YaHei UI, sans-serif";
+        ctx.fillText("暂无分时", pad, h / 2 + 4);
+        return;
+      }
+
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const spread = Math.max(max - min, Math.abs(max) * .002, 0.01);
+      const yFor = v => pad + (max - v) / spread * (h - pad * 2);
+      const xFor = i => pad + i / (values.length - 1) * (w - pad * 2);
+
+      ctx.beginPath();
+      values.forEach((v, i) => {
+        const x = xFor(i);
+        const y = yFor(v);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.lineTo(xFor(values.length - 1), h - pad);
+      ctx.lineTo(xFor(0), h - pad);
+      ctx.closePath();
+      const fill = ctx.createLinearGradient(0, pad, 0, h);
+      fill.addColorStop(0, color + "38");
+      fill.addColorStop(1, color + "00");
+      ctx.fillStyle = fill;
+      ctx.fill();
+
+      ctx.beginPath();
+      values.forEach((v, i) => {
+        const x = xFor(i);
+        const y = yFor(v);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = "#70695d";
+      ctx.font = "11px Microsoft YaHei UI, sans-serif";
+      ctx.fillText(points[0].time.slice(11, 16), pad, h - 7);
+      ctx.textAlign = "right";
+      ctx.fillText(points[points.length - 1].time.slice(11, 16), w - pad, h - 7);
+    }
+
+    function detailCacheKey(secid, view) {
+      return `${secid}:${view}`;
+    }
+
+    async function loadDetailData(secid, view) {
+      const key = detailCacheKey(secid, view);
+      if (view === "today") return { type: "line", points: trendMap.get(secid) || await fetchTrend(secid, 1) };
+      if (detailCache.has(key)) return detailCache.get(key);
+
+      let result;
+      if (view === "five") {
+        result = { type: "line", points: await fetchTrend(secid, 5) };
+      } else if (view === "day") {
+        result = { type: "kline", klines: await fetchKline(secid, 101, "20240101") };
+      } else if (view === "week") {
+        result = { type: "kline", klines: await fetchKline(secid, 102, "20200101") };
+      } else if (view === "month") {
+        result = { type: "kline", klines: await fetchKline(secid, 103, "20150101") };
+      } else {
+        const months = await fetchKline(secid, 103, "20000101");
+        result = { type: "kline", klines: aggregateYearly(months) };
+      }
+      detailCache.set(key, result);
+      return result;
+    }
+
+    function openDetail(secid) {
+      detailState = { secid, view: "today", loading: false };
+      els.modal.classList.add("open");
+      els.modal.setAttribute("aria-hidden", "false");
+      updateDetailHeader();
+      setActiveTab("today");
+      renderDetail();
+    }
+
+    function closeDetail() {
+      els.modal.classList.remove("open");
+      els.modal.setAttribute("aria-hidden", "true");
+    }
+
+    function setActiveTab(view) {
+      els.detailTabs.querySelectorAll(".tab").forEach(tab => {
+        tab.classList.toggle("active", tab.dataset.view === view);
+      });
+    }
+
+    function updateDetailHeader() {
+      const quote = quoteMap.get(detailState.secid);
+      els.detailTitle.textContent = `${quote?.f14 || "等待数据"} · ${secidToDisplay(detailState.secid)}`;
+      els.detailSub.textContent = `现价 ${formatNum(quote?.f2)} · 涨跌 ${formatNum(quote?.f4)} · ${formatNum(quote?.f3)}%`;
+      els.detailMeta.innerHTML = `
+        <div class="fact"><div class="label">今开</div><div class="value">${formatNum(quote?.f17)}</div></div>
+        <div class="fact"><div class="label">最高</div><div class="value">${formatNum(quote?.f15)}</div></div>
+        <div class="fact"><div class="label">最低</div><div class="value">${formatNum(quote?.f16)}</div></div>
+        <div class="fact"><div class="label">昨收</div><div class="value">${formatNum(quote?.f18)}</div></div>
+        <div class="fact"><div class="label">成交额</div><div class="value">${formatAmount(quote?.f6)}</div></div>
+        <div class="fact"><div class="label">视图</div><div class="value">${activeViewLabel()}</div></div>
+      `;
+    }
+
+    function activeViewLabel() {
+      return els.detailTabs.querySelector(`.tab[data-view="${detailState.view}"]`)?.textContent || "--";
+    }
+
+    async function renderDetail() {
+      if (!detailState.secid || detailState.loading) return;
+      detailState.loading = true;
+      updateDetailHeader();
+      drawLoading(els.detailCanvas, "加载中...");
+      try {
+        const data = await loadDetailData(detailState.secid, detailState.view);
+        if (data.type === "line") drawLargeLine(els.detailCanvas, data.points, quoteMap.get(detailState.secid));
+        else drawKline(els.detailCanvas, data.klines);
+      } catch (err) {
+        drawLoading(els.detailCanvas, `加载失败：${err.message}`);
+      } finally {
+        detailState.loading = false;
+      }
+    }
+
+    function setupCanvas(canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      const ctx = canvas.getContext("2d");
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      return { ctx, w: rect.width, h: rect.height };
+    }
+
+    function drawLoading(canvas, text) {
+      const { ctx, w, h } = setupCanvas(canvas);
+      ctx.fillStyle = "#70695d";
+      ctx.font = "14px Microsoft YaHei UI, sans-serif";
+      ctx.fillText(text, 18, h / 2);
+    }
+
+    function drawLargeLine(canvas, points, quote) {
+      const { ctx, w, h } = setupCanvas(canvas);
+      const pad = { l: 54, r: 18, t: 18, b: 32 };
+      const values = points.map(p => p.price);
+      if (values.length < 2) return drawLoading(canvas, "暂无数据");
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const spread = Math.max(max - min, Math.abs(max) * .002, 0.01);
+      const yFor = v => pad.t + (max - v) / spread * (h - pad.t - pad.b);
+      const xFor = i => pad.l + i / (values.length - 1) * (w - pad.l - pad.r);
+      const color = Number(quote?.f3) >= 0 ? "#c83232" : "#12805c";
+
+      drawGrid(ctx, w, h, pad, min, max);
+      ctx.beginPath();
+      values.forEach((v, i) => i ? ctx.lineTo(xFor(i), yFor(v)) : ctx.moveTo(xFor(i), yFor(v)));
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = "#70695d";
+      ctx.font = "12px Microsoft YaHei UI, sans-serif";
+      ctx.fillText(points[0].time.slice(0, 10), pad.l, h - 10);
+      ctx.textAlign = "right";
+      ctx.fillText(points[points.length - 1].time.slice(0, 16), w - pad.r, h - 10);
+      ctx.textAlign = "left";
+    }
+
+    function drawKline(canvas, klines) {
+      const { ctx, w, h } = setupCanvas(canvas);
+      const pad = { l: 54, r: 18, t: 18, b: 34 };
+      const data = klines.slice(-120);
+      if (data.length < 2) return drawLoading(canvas, "暂无 K 线数据");
+      const min = Math.min(...data.map(k => k.low));
+      const max = Math.max(...data.map(k => k.high));
+      const spread = Math.max(max - min, Math.abs(max) * .002, 0.01);
+      const yFor = v => pad.t + (max - v) / spread * (h - pad.t - pad.b);
+      const step = (w - pad.l - pad.r) / data.length;
+      const body = Math.max(2, Math.min(10, step * .58));
+
+      drawGrid(ctx, w, h, pad, min, max);
+      data.forEach((k, i) => {
+        const x = pad.l + i * step + step / 2;
+        const up = k.close >= k.open;
+        const color = up ? "#c83232" : "#12805c";
+        const yOpen = yFor(k.open);
+        const yClose = yFor(k.close);
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, yFor(k.high));
+        ctx.lineTo(x, yFor(k.low));
+        ctx.stroke();
+        const top = Math.min(yOpen, yClose);
+        const height = Math.max(1, Math.abs(yClose - yOpen));
+        if (up) {
+          ctx.strokeRect(x - body / 2, top, body, height);
+        } else {
+          ctx.fillRect(x - body / 2, top, body, height);
+        }
+      });
+      ctx.fillStyle = "#70695d";
+      ctx.font = "12px Microsoft YaHei UI, sans-serif";
+      ctx.fillText(data[0].date, pad.l, h - 10);
+      ctx.textAlign = "right";
+      ctx.fillText(data[data.length - 1].date, w - pad.r, h - 10);
+      ctx.textAlign = "left";
+    }
+
+    function drawGrid(ctx, w, h, pad, min, max) {
+      ctx.strokeStyle = "rgba(24, 22, 19, .12)";
+      ctx.lineWidth = 1;
+      ctx.fillStyle = "#70695d";
+      ctx.font = "11px Microsoft YaHei UI, sans-serif";
+      for (let i = 0; i <= 4; i++) {
+        const y = pad.t + i / 4 * (h - pad.t - pad.b);
+        const value = max - i / 4 * (max - min);
+        ctx.beginPath();
+        ctx.moveTo(pad.l, y);
+        ctx.lineTo(w - pad.r, y);
+        ctx.stroke();
+        ctx.fillText(formatNum(value), 8, y + 4);
+      }
+    }
+
+    async function addSymbol(secidOverride) {
+      const secid = secidOverride || await resolveInputToSecid();
+      if (!secid) {
+        toast("没有找到匹配的股票/指数");
+        return;
+      }
+      if (symbols.includes(secid)) {
+        toast("这个代码已经在看板里了");
+        return;
+      }
+      symbols.push(secid);
+      saveSymbols();
+      els.input.value = "";
+      renderSuggestions([]);
+      render();
+      refreshAll();
+    }
+
+    function removeSymbol(secid) {
+      symbols = symbols.filter(item => item !== secid);
+      quoteMap.delete(secid);
+      trendMap.delete(secid);
+      saveSymbols();
+      render();
+    }
+
+    function resetSymbols() {
+      symbols = DEFAULT_SYMBOLS.slice();
+      saveSymbols();
+      render();
+      refreshAll();
+    }
+
+    function updateClock() {
+      const now = new Date();
+      els.clock.textContent = `最后更新 ${now.toLocaleTimeString("zh-CN", { hour12: false })}`;
+    }
+
+    function scheduleRefresh() {
+      clearInterval(refreshTimer);
+      const seconds = saveRefreshSeconds();
+      refreshTimer = setInterval(refreshAll, seconds * 1000);
+    }
+
+    els.add.addEventListener("click", addSymbol);
+    els.refresh.addEventListener("click", refreshAll);
+    els.reset.addEventListener("click", resetSymbols);
+    els.interval.value = loadRefreshSeconds();
+    els.interval.addEventListener("change", scheduleRefresh);
+    els.interval.addEventListener("blur", scheduleRefresh);
+    els.input.addEventListener("input", scheduleSearch);
+    els.input.addEventListener("blur", () => {
+      setTimeout(() => renderSuggestions([]), 180);
+    });
+    els.input.addEventListener("keydown", event => {
+      if (event.key === "Enter") addSymbol();
+    });
+    els.suggestions.addEventListener("mousedown", event => {
+      const item = event.target.closest("[data-index]");
+      if (!item) return;
+      event.preventDefault();
+      const selected = suggestions[Number(item.dataset.index)];
+      if (selected) addSymbol(selected.secid);
+    });
+    els.grid.addEventListener("click", event => {
+      const button = event.target.closest("[data-remove]");
+      if (button) {
+        event.stopPropagation();
+        removeSymbol(button.dataset.remove);
+        return;
+      }
+      const card = event.target.closest("[data-secid]");
+      if (card) openDetail(card.dataset.secid);
+    });
+    els.marketStrip.addEventListener("click", event => {
+      const chip = event.target.closest("[data-index-open]");
+      if (chip) openDetail(chip.dataset.indexOpen);
+    });
+    els.detailClose.addEventListener("click", closeDetail);
+    els.modal.addEventListener("click", event => {
+      if (event.target === els.modal) closeDetail();
+    });
+    els.detailTabs.addEventListener("click", event => {
+      const tab = event.target.closest("[data-view]");
+      if (!tab) return;
+      detailState.view = tab.dataset.view;
+      setActiveTab(detailState.view);
+      renderDetail();
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") closeDetail();
+    });
+    window.addEventListener("resize", renderCharts);
+    window.addEventListener("resize", () => {
+      if (els.modal.classList.contains("open")) renderDetail();
+    });
+
+    render();
+    refreshAll();
+    scheduleRefresh();
+  </script>
+</body>
+</html>
