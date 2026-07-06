@@ -1,0 +1,7 @@
+name = "tiny-stocks"
+pages_build_output_dir = "."
+compatibility_date = "2026-07-06"
+
+[[kv_namespaces]]
+binding = "STOCK_SYNC"
+id = "b5154ef6dade45ce84c8be56be3e24aa"

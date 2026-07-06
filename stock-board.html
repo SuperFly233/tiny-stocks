@@ -442,6 +442,7 @@
     }
 
     .detail-canvas-wrap {
+      position: relative;
       min-height: 300px;
       padding: 12px;
       background:
@@ -465,6 +466,235 @@
       gap: 8px;
       padding: 10px 12px 12px;
       border-top: 1px solid var(--line);
+    }
+
+    .chart-tools {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border-bottom: 1px solid #242833;
+      background: #07090d;
+      color: #b8beca;
+      font-size: 12px;
+    }
+
+    .chart-tool {
+      height: 28px;
+      padding: 0 10px;
+      border: 1px solid #2c3240;
+      border-radius: 5px;
+      background: #11151d;
+      color: #d8dde8;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .chart-tool:hover {
+      border-color: #5c6982;
+      background: #171d28;
+    }
+
+    .chart-readout {
+      flex: 1;
+      min-width: 260px;
+      color: #c9cfda;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: Consolas, "Microsoft YaHei UI", monospace;
+    }
+
+    .chart-tip {
+      position: absolute;
+      left: 0;
+      top: 0;
+      display: none;
+      min-width: 210px;
+      padding: 8px 10px;
+      border: 1px solid #333947;
+      border-radius: 6px;
+      background: rgba(8, 10, 14, .94);
+      color: #eef2f7;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, .28);
+      font-size: 12px;
+      line-height: 1.55;
+      pointer-events: none;
+      z-index: 2;
+      font-family: Consolas, "Microsoft YaHei UI", monospace;
+    }
+
+    .theme-btn {
+      font-size: 17px;
+      line-height: 1;
+    }
+
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --paper: #000;
+      --ink: #f2f5fb;
+      --muted: #8e97a8;
+      --line: #20242d;
+      --panel: #05070a;
+      --red: #f05a72;
+      --green: #39b86f;
+      --blue: #8db7ff;
+      --amber: #e0a942;
+      --shadow: none;
+    }
+
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --paper: #f5f7fb;
+      --ink: #101a3d;
+      --muted: #858da8;
+      --line: #e9edf5;
+      --panel: #ffffff;
+      --red: #f04f4f;
+      --green: #35ad63;
+      --blue: #3158f4;
+      --amber: #eaa83a;
+      --shadow: 0 8px 28px rgba(22, 32, 66, .08);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root[data-theme="auto"] {
+        color-scheme: dark;
+        --paper: #000;
+        --ink: #f2f5fb;
+        --muted: #8e97a8;
+        --line: #20242d;
+        --panel: #05070a;
+        --red: #f05a72;
+        --green: #39b86f;
+        --blue: #8db7ff;
+        --amber: #e0a942;
+        --shadow: none;
+      }
+    }
+
+    :root[data-theme="dark"] body,
+    :root[data-theme="auto"] body {
+      background: var(--paper);
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root[data-theme="auto"] body {
+        background: #f5f7fb;
+      }
+    }
+
+    :root[data-theme="dark"] .shell,
+    :root[data-theme="auto"] .shell {
+      background: #05070a;
+      box-shadow: none;
+    }
+
+    :root[data-theme="dark"] header,
+    :root[data-theme="auto"] header {
+      background: rgba(5, 7, 10, .94);
+      border-bottom: 1px solid #20242d;
+    }
+
+    :root[data-theme="dark"] .field,
+    :root[data-theme="auto"] .field {
+      border-color: #242a35;
+      background: #0d1118;
+      color: #f2f5fb;
+    }
+
+    :root[data-theme="dark"] .btn,
+    :root[data-theme="auto"] .btn {
+      background: #111722;
+      color: #dbe6ff;
+    }
+
+    :root[data-theme="dark"] .statusbar,
+    :root[data-theme="auto"] .statusbar,
+    :root[data-theme="dark"] .view-tabs,
+    :root[data-theme="auto"] .view-tabs,
+    :root[data-theme="dark"] .quote-header,
+    :root[data-theme="auto"] .quote-header {
+      border-color: #20242d;
+      background: #05070a;
+    }
+
+    :root[data-theme="dark"] .card,
+    :root[data-theme="auto"] .card {
+      background: #05070a;
+      border-color: #121720;
+    }
+
+    :root[data-theme="dark"] .card:hover,
+    :root[data-theme="auto"] .card:hover {
+      background: #0b1018;
+    }
+
+    :root[data-theme="dark"] .index-chip,
+    :root[data-theme="auto"] .index-chip {
+      background: #081c13;
+    }
+
+    :root[data-theme="dark"] .index-chip.up,
+    :root[data-theme="auto"] .index-chip.up {
+      background: #251016;
+    }
+
+    :root[data-theme="dark"] .index-chip.flat,
+    :root[data-theme="auto"] .index-chip.flat {
+      background: #131722;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root[data-theme="auto"] .shell {
+        background: #fff;
+        box-shadow: 0 0 0 1px rgba(16, 26, 61, .04), 0 24px 70px rgba(22, 32, 66, .08);
+      }
+
+      :root[data-theme="auto"] header {
+        background: rgba(255, 255, 255, .94);
+        border-bottom: 0;
+      }
+
+      :root[data-theme="auto"] .field {
+        border-color: #dfe5f0;
+        background: #f9fbff;
+        color: #101a3d;
+      }
+
+      :root[data-theme="auto"] .btn {
+        background: #eef2ff;
+        color: #3158f4;
+      }
+
+      :root[data-theme="auto"] .statusbar,
+      :root[data-theme="auto"] .view-tabs,
+      :root[data-theme="auto"] .quote-header {
+        border-color: #e9edf5;
+        background: #fff;
+      }
+
+      :root[data-theme="auto"] .card {
+        background: #fff;
+        border-color: #f0f2f7;
+      }
+
+      :root[data-theme="auto"] .card:hover {
+        background: #f8faff;
+      }
+
+      :root[data-theme="auto"] .index-chip {
+        background: #eaf6f0;
+      }
+
+      :root[data-theme="auto"] .index-chip.up {
+        background: #fff0f0;
+      }
+
+      :root[data-theme="auto"] .index-chip.flat {
+        background: #eef1fb;
+      }
     }
 
     /* Compact quote terminal skin */
@@ -859,10 +1089,34 @@
       border: 0;
       border-radius: 10px;
       box-shadow: 0 28px 90px rgba(14, 21, 45, .34);
+      background: #07090d;
     }
 
     .detail-head {
       padding: 16px 18px 12px;
+      border-bottom-color: #242833;
+      background: #0b0e14;
+      color: #eef2f7;
+    }
+
+    .detail-title { color: #eef2f7; }
+    .detail-sub { color: #8c94a3; }
+
+    .tabs {
+      border-bottom-color: #242833;
+      background: #080b10;
+    }
+
+    .tab {
+      border-color: transparent;
+      background: transparent;
+      color: #9aa3b2;
+    }
+
+    .tab.active {
+      border-color: #384151;
+      background: #1a202b;
+      color: #fff;
     }
 
     .detail-close {
@@ -870,6 +1124,27 @@
       background: #eef2ff;
       color: var(--blue);
     }
+
+    .detail-canvas-wrap {
+      padding: 0;
+      background: #020403;
+    }
+
+    .detail-canvas {
+      min-height: 430px;
+      border: 0;
+      border-radius: 0;
+      background: #020403;
+      cursor: crosshair;
+    }
+
+    .detail-meta {
+      border-top-color: #242833;
+      background: #080b10;
+    }
+
+    .detail-meta .label { color: #727b8d; }
+    .detail-meta .value { color: #dce2ec; }
 
     @media (max-width: 780px) {
       header {
@@ -965,6 +1240,8 @@
         <button id="refreshBtn" class="btn secondary" title="立即刷新">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
         </button>
+        <button id="themeBtn" class="btn secondary theme-btn" title="主题：自动" aria-label="切换主题">💻</button>
+        <button id="syncBtn" class="btn secondary theme-btn" title="云端同步" aria-label="云端同步">☁</button>
         <button id="resetBtn" class="btn secondary" title="恢复默认">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/></svg>
         </button>
@@ -1008,8 +1285,17 @@
         <button class="tab" data-view="month">月 K</button>
         <button class="tab" data-view="year">年 K</button>
       </div>
+      <div class="chart-tools">
+        <button id="chartPrev" class="chart-tool" type="button">← 上一段</button>
+        <button id="chartNext" class="chart-tool" type="button">下一段 →</button>
+        <button id="chartZoomIn" class="chart-tool" type="button">放大</button>
+        <button id="chartZoomOut" class="chart-tool" type="button">缩小</button>
+        <button id="chartReset" class="chart-tool" type="button">重置</button>
+        <span id="chartReadout" class="chart-readout">移动鼠标查看精确时间、价格和成交量</span>
+      </div>
       <div class="detail-canvas-wrap">
         <canvas id="detailCanvas" class="detail-canvas"></canvas>
+        <div id="chartTip" class="chart-tip"></div>
       </div>
       <div id="detailMeta" class="detail-meta"></div>
     </article>
@@ -1020,6 +1306,8 @@
   <script>
     const STORAGE_KEY = "lite-stock-board-symbols-v1";
     const REFRESH_KEY = "lite-stock-board-refresh-v1";
+    const THEME_KEY = "lite-stock-board-theme-v1";
+    const SYNC_KEY = "lite-stock-board-sync-id-v1";
     const API_QUOTE = "https://push2.eastmoney.com/api/qt/ulist.np/get";
     const API_TREND = "https://push2his.eastmoney.com/api/qt/stock/trends2/get";
     const API_KLINE = "https://push2his.eastmoney.com/api/qt/stock/kline/get";
@@ -1044,6 +1332,15 @@
       detailSub: document.querySelector("#detailSub"),
       detailTabs: document.querySelector("#detailTabs"),
       detailCanvas: document.querySelector("#detailCanvas"),
+      chartTip: document.querySelector("#chartTip"),
+      chartReadout: document.querySelector("#chartReadout"),
+      chartPrev: document.querySelector("#chartPrev"),
+      chartNext: document.querySelector("#chartNext"),
+      chartZoomIn: document.querySelector("#chartZoomIn"),
+      chartZoomOut: document.querySelector("#chartZoomOut"),
+      chartReset: document.querySelector("#chartReset"),
+      theme: document.querySelector("#themeBtn"),
+      sync: document.querySelector("#syncBtn"),
       detailMeta: document.querySelector("#detailMeta"),
       detailClose: document.querySelector("#detailClose")
     };
@@ -1053,9 +1350,12 @@
     let trendMap = new Map();
     let detailState = { secid: null, view: "today", loading: false };
     let detailCache = new Map();
+    let chartState = { type: null, data: [], offset: 0, window: 90, hover: null, dragging: false, dragX: 0, dragOffset: 0 };
     let suggestions = [];
     let searchTimer = null;
     let refreshTimer = null;
+    let syncTimer = null;
+    let lastTrendRefresh = 0;
 
     function loadSymbols() {
       try {
@@ -1074,6 +1374,7 @@
 
     function saveSymbols() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(symbols));
+      queueCloudSync();
     }
 
     function loadRefreshSeconds() {
@@ -1085,6 +1386,7 @@
       const seconds = Math.max(1, Math.round(Number(els.interval.value) || 5));
       els.interval.value = seconds;
       localStorage.setItem(REFRESH_KEY, String(seconds));
+      queueCloudSync();
       return seconds;
     }
 
@@ -1136,15 +1438,114 @@
       return "flat";
     }
 
+    function applyTheme(theme = localStorage.getItem(THEME_KEY) || "auto") {
+      const value = ["auto", "light", "dark"].includes(theme) ? theme : "auto";
+      document.documentElement.dataset.theme = value;
+      localStorage.setItem(THEME_KEY, value);
+      if (els.theme) {
+        els.theme.textContent = value === "light" ? "☀" : value === "dark" ? "☾" : "💻";
+        els.theme.title = `主题：${value === "light" ? "浅色" : value === "dark" ? "深色" : "自动"}`;
+      }
+      queueCloudSync();
+    }
+
+    function nextTheme() {
+      const current = localStorage.getItem(THEME_KEY) || "auto";
+      applyTheme(current === "auto" ? "dark" : current === "dark" ? "light" : "auto");
+    }
+
+    function getCloudPayload() {
+      return {
+        symbols,
+        refreshSeconds: Number(els.interval.value) || loadRefreshSeconds(),
+        theme: localStorage.getItem(THEME_KEY) || "auto",
+        updatedAt: new Date().toISOString()
+      };
+    }
+
+    function syncId() {
+      return localStorage.getItem(SYNC_KEY) || "";
+    }
+
+    function queueCloudSync() {
+      const id = syncId();
+      if (!id) return;
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => uploadCloudSync(id), 700);
+    }
+
+    async function uploadCloudSync(id) {
+      try {
+        await fetch(`/api/sync?id=${encodeURIComponent(id)}`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(getCloudPayload())
+        });
+        toast("已同步到云端");
+      } catch {
+        toast("云同步暂时不可用，已保留本地配置");
+      }
+    }
+
+    async function downloadCloudSync(id) {
+      const res = await fetch(`/api/sync?id=${encodeURIComponent(id)}`, { cache: "no-store" });
+      if (res.status === 404) return false;
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (Array.isArray(data.symbols) && data.symbols.length) {
+        symbols = [...new Set(data.symbols)];
+        saveSymbols();
+      }
+      if (Number(data.refreshSeconds) >= 1) {
+        els.interval.value = Math.round(Number(data.refreshSeconds));
+        saveRefreshSeconds();
+        scheduleRefresh();
+      }
+      if (data.theme) applyTheme(data.theme);
+      render();
+      refreshAll();
+      return true;
+    }
+
+    async function setupCloudSync() {
+      let id = syncId();
+      const suggestion = id || `stocks-${Math.random().toString(36).slice(2, 8)}`;
+      id = prompt("输入同步码；留空会关闭云同步。这个同步码知道的人都能读取/覆盖这份自选。", suggestion);
+      if (id === null) return;
+      id = id.trim();
+      if (!id) {
+        localStorage.removeItem(SYNC_KEY);
+        toast("已关闭云同步");
+        return;
+      }
+      localStorage.setItem(SYNC_KEY, id);
+      try {
+        const existed = await downloadCloudSync(id);
+        if (!existed) await uploadCloudSync(id);
+        toast(existed ? "已从云端同步" : "已创建云端同步");
+      } catch {
+        toast("云同步暂时不可用，已保存同步码");
+      }
+    }
+
     function isIndexSecid(secid) {
       return ["1.000001", "0.399001", "0.399006", "1.000300", "1.000016", "0.399300"].includes(secid);
     }
 
     async function fetchJson(url, params) {
       const qs = new URLSearchParams(params);
-      const res = await fetch(`${url}?${qs.toString()}`, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
+      let lastError;
+      for (let i = 0; i < 2; i++) {
+        try {
+          const res = await fetch(`${url}?${qs.toString()}`, { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        } catch (err) {
+          lastError = err;
+          await new Promise(resolve => setTimeout(resolve, 350 + i * 500));
+        }
+      }
+      throw lastError;
     }
 
     async function searchStocks(keyword) {
@@ -1332,7 +1733,7 @@
         try {
           trendMap.set(secid, await fetchTrend(secid, 1));
         } catch {
-          trendMap.set(secid, []);
+          if (!trendMap.has(secid)) trendMap.set(secid, []);
         }
       });
       await Promise.allSettled(jobs);
@@ -1344,7 +1745,12 @@
       els.ticker.textContent = "正在刷新行情...";
       try {
         await refreshQuotes();
-        await refreshTrends();
+        if (Date.now() - lastTrendRefresh > 30000) {
+          lastTrendRefresh = Date.now();
+          await refreshTrends();
+        } else {
+          renderCharts();
+        }
         toast("行情已刷新");
       } catch (err) {
         els.ticker.textContent = "刷新失败：可能是网络或行情接口暂时不可用";
@@ -1493,12 +1899,12 @@
 
     async function loadDetailData(secid, view) {
       const key = detailCacheKey(secid, view);
-      if (view === "today") return { type: "line", points: trendMap.get(secid) || await fetchTrend(secid, 1) };
+      if (view === "today") return { type: "line", points: trendMap.get(secid) || await fetchTrend(secid, 1), days: 1 };
       if (detailCache.has(key)) return detailCache.get(key);
 
       let result;
       if (view === "five") {
-        result = { type: "line", points: await fetchTrend(secid, 5) };
+        result = { type: "line", points: await fetchTrend(secid, 5), days: 5 };
       } else if (view === "day") {
         result = { type: "kline", klines: await fetchKline(secid, 101, "20240101") };
       } else if (view === "week") {
@@ -1515,6 +1921,7 @@
 
     function openDetail(secid) {
       detailState = { secid, view: "today", loading: false };
+      resetChartState();
       els.modal.classList.add("open");
       els.modal.setAttribute("aria-hidden", "false");
       updateDetailHeader();
@@ -1558,13 +1965,30 @@
       drawLoading(els.detailCanvas, "加载中...");
       try {
         const data = await loadDetailData(detailState.secid, detailState.view);
-        if (data.type === "line") drawLargeLine(els.detailCanvas, data.points, quoteMap.get(detailState.secid));
-        else drawKline(els.detailCanvas, data.klines);
+        if (data.type === "line") {
+          chartState.type = "line";
+          chartState.data = data.points;
+          chartState.days = data.days;
+          chartState.window = data.points.length;
+          chartState.offset = 0;
+        } else {
+          chartState.type = "kline";
+          chartState.data = data.klines;
+          chartState.window = Math.min(chartState.window || 90, data.klines.length, 120);
+          chartState.offset = 0;
+        }
+        drawInteractiveChart();
       } catch (err) {
         drawLoading(els.detailCanvas, `加载失败：${err.message}`);
       } finally {
         detailState.loading = false;
       }
+    }
+
+    function resetChartState() {
+      chartState = { type: null, data: [], offset: 0, window: 90, hover: null, dragging: false, dragX: 0, dragOffset: 0 };
+      if (els.chartTip) els.chartTip.style.display = "none";
+      if (els.chartReadout) els.chartReadout.textContent = "移动鼠标查看精确时间、价格和成交量";
     }
 
     function setupCanvas(canvas) {
@@ -1585,88 +2009,321 @@
       ctx.fillText(text, 18, h / 2);
     }
 
-    function drawLargeLine(canvas, points, quote) {
+    function visibleData() {
+      if (chartState.type !== "kline") return chartState.data || [];
+      const total = chartState.data.length;
+      const win = Math.max(20, Math.min(chartState.window, total));
+      const maxOffset = Math.max(0, total - win);
+      chartState.offset = Math.max(0, Math.min(chartState.offset, maxOffset));
+      const end = total - chartState.offset;
+      return chartState.data.slice(Math.max(0, end - win), end);
+    }
+
+    function drawInteractiveChart() {
+      if (chartState.type === "line") drawLargeLine(els.detailCanvas, chartState.data, quoteMap.get(detailState.secid), chartState.days);
+      else if (chartState.type === "kline") drawKline(els.detailCanvas, chartState.data);
+    }
+
+    function drawLargeLine(canvas, points, quote, days = 1) {
       const { ctx, w, h } = setupCanvas(canvas);
-      const pad = { l: 54, r: 18, t: 18, b: 32 };
+      const pad = { l: 18, r: 74, t: 24, b: 38 };
+      const plotH = h - pad.t - pad.b;
       const values = points.map(p => p.price);
-      if (values.length < 2) return drawLoading(canvas, "暂无数据");
+      if (values.length < 2) return drawLoading(canvas, "暂无分时数据");
       const min = Math.min(...values);
       const max = Math.max(...values);
       const spread = Math.max(max - min, Math.abs(max) * .002, 0.01);
-      const yFor = v => pad.t + (max - v) / spread * (h - pad.t - pad.b);
+      const yFor = v => pad.t + (max - v) / spread * plotH;
       const xFor = i => pad.l + i / (values.length - 1) * (w - pad.l - pad.r);
-      const color = Number(quote?.f3) >= 0 ? "#c83232" : "#12805c";
+      const color = Number(quote?.f3) >= 0 ? "#f05a72" : "#39b86f";
 
-      drawGrid(ctx, w, h, pad, min, max);
+      paintChartBackground(ctx, w, h);
+      drawGrid(ctx, w, h, pad, min, max, points, "line");
+      drawFiveDaySeparators(ctx, w, h, pad, points, days);
+
       ctx.beginPath();
-      values.forEach((v, i) => i ? ctx.lineTo(xFor(i), yFor(v)) : ctx.moveTo(xFor(i), yFor(v)));
+      points.forEach((p, i) => i ? ctx.lineTo(xFor(i), yFor(p.price)) : ctx.moveTo(xFor(i), yFor(p.price)));
       ctx.strokeStyle = color;
       ctx.lineWidth = 2;
       ctx.stroke();
-      ctx.fillStyle = "#70695d";
-      ctx.font = "12px Microsoft YaHei UI, sans-serif";
-      ctx.fillText(points[0].time.slice(0, 10), pad.l, h - 10);
-      ctx.textAlign = "right";
-      ctx.fillText(points[points.length - 1].time.slice(0, 16), w - pad.r, h - 10);
-      ctx.textAlign = "left";
+
+      const current = chartState.hover != null ? points[chartState.hover] : points[points.length - 1];
+      if (chartState.hover != null && current) drawLineCrosshair(ctx, w, h, pad, points, current, chartState.hover, yFor, xFor);
+      drawVolumeBars(ctx, w, h, pad, [], null);
+      updateReadoutForLine(current);
     }
 
     function drawKline(canvas, klines) {
       const { ctx, w, h } = setupCanvas(canvas);
-      const pad = { l: 54, r: 18, t: 18, b: 34 };
-      const data = klines.slice(-120);
+      const pad = { l: 18, r: 74, t: 24, b: 38 };
+      const data = visibleData();
       if (data.length < 2) return drawLoading(canvas, "暂无 K 线数据");
       const min = Math.min(...data.map(k => k.low));
       const max = Math.max(...data.map(k => k.high));
       const spread = Math.max(max - min, Math.abs(max) * .002, 0.01);
       const yFor = v => pad.t + (max - v) / spread * (h - pad.t - pad.b);
       const step = (w - pad.l - pad.r) / data.length;
-      const body = Math.max(2, Math.min(10, step * .58));
+      const body = Math.max(3, Math.min(13, step * .62));
 
-      drawGrid(ctx, w, h, pad, min, max);
+      paintChartBackground(ctx, w, h);
+      drawGrid(ctx, w, h, pad, min, max, data, "kline");
+      drawMovingAverages(ctx, data, pad, w, h, yFor, step);
       data.forEach((k, i) => {
         const x = pad.l + i * step + step / 2;
         const up = k.close >= k.open;
-        const color = up ? "#c83232" : "#12805c";
+        const color = up ? "#f05a72" : "#39b86f";
         const yOpen = yFor(k.open);
         const yClose = yFor(k.close);
         ctx.strokeStyle = color;
         ctx.fillStyle = color;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1.2;
         ctx.beginPath();
         ctx.moveTo(x, yFor(k.high));
         ctx.lineTo(x, yFor(k.low));
         ctx.stroke();
         const top = Math.min(yOpen, yClose);
-        const height = Math.max(1, Math.abs(yClose - yOpen));
-        if (up) {
-          ctx.strokeRect(x - body / 2, top, body, height);
-        } else {
-          ctx.fillRect(x - body / 2, top, body, height);
-        }
+        const height = Math.max(2, Math.abs(yClose - yOpen));
+        ctx.fillRect(x - body / 2, top, body, height);
       });
-      ctx.fillStyle = "#70695d";
-      ctx.font = "12px Microsoft YaHei UI, sans-serif";
-      ctx.fillText(data[0].date, pad.l, h - 10);
-      ctx.textAlign = "right";
-      ctx.fillText(data[data.length - 1].date, w - pad.r, h - 10);
-      ctx.textAlign = "left";
+      drawVolumeBars(ctx, w, h, pad, data, step);
+      const hoverIndex = chartState.hover != null ? Math.max(0, Math.min(chartState.hover, data.length - 1)) : data.length - 1;
+      if (chartState.hover != null) drawKlineCrosshair(ctx, w, h, pad, data, hoverIndex, yFor, step);
+      updateReadoutForKline(data[hoverIndex]);
     }
 
-    function drawGrid(ctx, w, h, pad, min, max) {
-      ctx.strokeStyle = "rgba(24, 22, 19, .12)";
+    function paintChartBackground(ctx, w, h) {
+      ctx.fillStyle = "#020403";
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "rgba(240, 90, 114, .045)";
+      ctx.fillRect(w - 112, 0, 112, h);
+      ctx.fillStyle = "rgba(57, 184, 111, .035)";
+      ctx.fillRect(w - 112, h * .52, 112, h * .48);
+    }
+
+    function drawGrid(ctx, w, h, pad, min, max, data, type) {
+      ctx.strokeStyle = "rgba(255,255,255,.09)";
       ctx.lineWidth = 1;
-      ctx.fillStyle = "#70695d";
-      ctx.font = "11px Microsoft YaHei UI, sans-serif";
-      for (let i = 0; i <= 4; i++) {
-        const y = pad.t + i / 4 * (h - pad.t - pad.b);
-        const value = max - i / 4 * (max - min);
+      ctx.fillStyle = "#b8beca";
+      ctx.font = "12px Consolas, Microsoft YaHei UI, monospace";
+      ctx.textAlign = "left";
+      for (let i = 0; i <= 6; i++) {
+        const y = pad.t + i / 6 * (h - pad.t - pad.b);
+        const value = max - i / 6 * (max - min);
         ctx.beginPath();
         ctx.moveTo(pad.l, y);
         ctx.lineTo(w - pad.r, y);
         ctx.stroke();
-        ctx.fillText(formatNum(value), 8, y + 4);
+        ctx.fillText(formatNum(value), w - pad.r + 10, y + 4);
       }
+      const ticks = Math.min(8, Math.max(3, Math.floor((w - pad.l - pad.r) / 130)));
+      for (let i = 0; i <= ticks; i++) {
+        const x = pad.l + i / ticks * (w - pad.l - pad.r);
+        ctx.beginPath();
+        ctx.moveTo(x, pad.t);
+        ctx.lineTo(x, h - pad.b);
+        ctx.stroke();
+        const index = Math.min(data.length - 1, Math.round(i / ticks * (data.length - 1)));
+        const label = type === "line" ? formatTimeTick(data[index]?.time) : data[index]?.date;
+        ctx.fillStyle = "#8c94a3";
+        ctx.textAlign = i === ticks ? "right" : "left";
+        ctx.fillText(label || "", i === ticks ? x - 4 : x + 4, h - 12);
+      }
+      ctx.textAlign = "left";
+    }
+
+    function drawFiveDaySeparators(ctx, w, h, pad, points, days) {
+      if (days < 2) return;
+      const plotW = w - pad.l - pad.r;
+      let lastDate = points[0]?.time?.slice(0, 10);
+      points.forEach((p, i) => {
+        const date = p.time.slice(0, 10);
+        if (i && date !== lastDate) {
+          const x = pad.l + i / (points.length - 1) * plotW;
+          ctx.strokeStyle = "rgba(255,255,255,.24)";
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(x, pad.t);
+          ctx.lineTo(x, h - pad.b);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = "#e0a942";
+          ctx.font = "12px Consolas, Microsoft YaHei UI, monospace";
+          ctx.fillText(date.slice(5), x + 6, pad.t + 16);
+          lastDate = date;
+        }
+      });
+    }
+
+    function drawMovingAverages(ctx, data, pad, w, h, yFor, step) {
+      [
+        { n: 5, color: "#e0a942" },
+        { n: 10, color: "#df5c91" },
+        { n: 20, color: "#55bfd2" }
+      ].forEach(ma => {
+        ctx.beginPath();
+        data.forEach((_, i) => {
+          if (i < ma.n - 1) return;
+          const slice = data.slice(i - ma.n + 1, i + 1);
+          const avg = slice.reduce((sum, k) => sum + k.close, 0) / ma.n;
+          const x = pad.l + i * step + step / 2;
+          const y = yFor(avg);
+          if (i === ma.n - 1) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = ma.color;
+        ctx.lineWidth = 1.3;
+        ctx.stroke();
+      });
+    }
+
+    function drawVolumeBars(ctx, w, h, pad, data, step) {
+      const volTop = h - Math.max(86, h * .2);
+      ctx.fillStyle = "rgba(255,255,255,.05)";
+      ctx.fillRect(pad.l, volTop, w - pad.l - pad.r, h - pad.b - volTop);
+      if (!data?.length || !step) return;
+      const maxVol = Math.max(...data.map(k => k.volume || 0), 1);
+      data.forEach((k, i) => {
+        const x = pad.l + i * step + step * .2;
+        const barH = (k.volume || 0) / maxVol * (h - pad.b - volTop);
+        ctx.fillStyle = k.close >= k.open ? "rgba(240,90,114,.45)" : "rgba(57,184,111,.45)";
+        ctx.fillRect(x, h - pad.b - barH, Math.max(1, step * .6), barH);
+      });
+      ctx.fillStyle = "#b8beca";
+      ctx.font = "12px Consolas, Microsoft YaHei UI, monospace";
+      ctx.fillText("VOLUME", pad.l + 8, volTop + 18);
+    }
+
+    function drawLineCrosshair(ctx, w, h, pad, points, item, index, yFor, xFor) {
+      const x = xFor(index);
+      const y = yFor(item.price);
+      drawCrosshair(ctx, w, h, pad, x, y, formatNum(item.price));
+      positionTooltip(x, y, [
+        item.time,
+        `价格 ${formatNum(item.price)}`,
+        `涨跌 ${formatPctFromQuote(item.price)}`
+      ]);
+    }
+
+    function drawKlineCrosshair(ctx, w, h, pad, data, index, yFor, step) {
+      const k = data[index];
+      if (!k) return;
+      const x = pad.l + index * step + step / 2;
+      const y = yFor(k.close);
+      drawCrosshair(ctx, w, h, pad, x, y, formatNum(k.close));
+      positionTooltip(x, y, [
+        k.date,
+        `开 ${formatNum(k.open)} 高 ${formatNum(k.high)}`,
+        `低 ${formatNum(k.low)} 收 ${formatNum(k.close)}`,
+        `涨跌 ${formatNum(k.change)} / ${formatNum(k.pct)}%`,
+        `量 ${formatAmount(k.volume)} 额 ${formatAmount(k.amount)}`
+      ]);
+    }
+
+    function drawCrosshair(ctx, w, h, pad, x, y, priceText) {
+      ctx.save();
+      ctx.setLineDash([5, 5]);
+      ctx.strokeStyle = "rgba(210,218,232,.65)";
+      ctx.beginPath();
+      ctx.moveTo(x, pad.t);
+      ctx.lineTo(x, h - pad.b);
+      ctx.moveTo(pad.l, y);
+      ctx.lineTo(w - pad.r, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#4a4f5c";
+      ctx.fillRect(w - pad.r + 2, y - 16, 68, 32);
+      ctx.fillStyle = "#fff";
+      ctx.font = "12px Consolas, Microsoft YaHei UI, monospace";
+      ctx.fillText(priceText, w - pad.r + 8, y + 4);
+      ctx.restore();
+    }
+
+    function positionTooltip(x, y, lines) {
+      if (!els.chartTip) return;
+      els.chartTip.innerHTML = lines.join("<br>");
+      els.chartTip.style.display = "block";
+      const wrap = els.detailCanvas.parentElement.getBoundingClientRect();
+      const left = Math.min(Math.max(8, x + 14), wrap.width - 230);
+      const top = Math.min(Math.max(8, y + 12), wrap.height - 120);
+      els.chartTip.style.transform = `translate(${left}px, ${top}px)`;
+    }
+
+    function updateReadoutForLine(item) {
+      if (!item) return;
+      els.chartReadout.textContent = `${item.time}  最新 ${formatNum(item.price)}  ${formatPctFromQuote(item.price)}`;
+    }
+
+    function updateReadoutForKline(k) {
+      if (!k) return;
+      els.chartReadout.textContent = `${k.date}  开 ${formatNum(k.open)}  高 ${formatNum(k.high)}  低 ${formatNum(k.low)}  收 ${formatNum(k.close)}  涨跌 ${formatNum(k.pct)}%  量 ${formatAmount(k.volume)}`;
+    }
+
+    function formatPctFromQuote(price) {
+      const quote = quoteMap.get(detailState.secid);
+      const base = Number(quote?.f18);
+      if (!Number.isFinite(base) || !base) return "--";
+      const pct = (Number(price) - base) / base * 100;
+      return `${pct >= 0 ? "+" : ""}${formatNum(pct)}%`;
+    }
+
+    function formatTimeTick(value) {
+      if (!value) return "";
+      const text = String(value);
+      if (text.length >= 16) return text.slice(5, 16).replace(" ", " ");
+      return text;
+    }
+
+    function chartIndexFromEvent(event) {
+      const rect = els.detailCanvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const pad = { l: 18, r: 74 };
+      const plotW = rect.width - pad.l - pad.r;
+      if (plotW <= 0) return 0;
+      if (chartState.type === "line") {
+        return Math.max(0, Math.min(chartState.data.length - 1, Math.round((x - pad.l) / plotW * (chartState.data.length - 1))));
+      }
+      const data = visibleData();
+      const step = plotW / Math.max(1, data.length);
+      return Math.max(0, Math.min(data.length - 1, Math.floor((x - pad.l) / step)));
+    }
+
+    function handleChartMove(event) {
+      if (!chartState.data?.length) return;
+      if (chartState.dragging && chartState.type === "kline") {
+        const rect = els.detailCanvas.getBoundingClientRect();
+        const step = (rect.width - 18 - 74) / Math.max(1, chartState.window);
+        const delta = Math.round((event.clientX - chartState.dragX) / Math.max(1, step));
+        chartState.offset = Math.max(0, chartState.dragOffset + delta);
+        drawInteractiveChart();
+        return;
+      }
+      chartState.hover = chartIndexFromEvent(event);
+      drawInteractiveChart();
+    }
+
+    function handleChartLeave() {
+      if (chartState.dragging) return;
+      chartState.hover = null;
+      if (els.chartTip) els.chartTip.style.display = "none";
+      drawInteractiveChart();
+    }
+
+    function shiftChart(direction) {
+      if (!chartState.data?.length) return;
+      if (chartState.type === "kline") {
+        chartState.offset = Math.max(0, chartState.offset + direction * Math.max(5, Math.round(chartState.window * .35)));
+      } else {
+        const size = Math.max(1, Math.round(chartState.data.length / Math.max(1, chartState.days || 1)));
+        chartState.hover = Math.max(0, Math.min(chartState.data.length - 1, (chartState.hover ?? chartState.data.length - 1) + direction * size));
+      }
+      drawInteractiveChart();
+    }
+
+    function zoomChart(direction) {
+      if (chartState.type !== "kline") return;
+      const next = chartState.window + direction * 15;
+      chartState.window = Math.max(25, Math.min(180, next, chartState.data.length));
+      drawInteractiveChart();
     }
 
     async function addSymbol(secidOverride) {
@@ -1716,6 +2373,34 @@
     els.add.addEventListener("click", addSymbol);
     els.refresh.addEventListener("click", refreshAll);
     els.reset.addEventListener("click", resetSymbols);
+    els.theme.addEventListener("click", nextTheme);
+    els.sync.addEventListener("click", setupCloudSync);
+    els.chartPrev.addEventListener("click", () => shiftChart(1));
+    els.chartNext.addEventListener("click", () => shiftChart(-1));
+    els.chartZoomIn.addEventListener("click", () => zoomChart(-1));
+    els.chartZoomOut.addEventListener("click", () => zoomChart(1));
+    els.chartReset.addEventListener("click", () => {
+      chartState.offset = 0;
+      chartState.hover = null;
+      chartState.window = Math.min(chartState.data.length || 90, 90);
+      drawInteractiveChart();
+    });
+    els.detailCanvas.addEventListener("mousemove", handleChartMove);
+    els.detailCanvas.addEventListener("mouseleave", handleChartLeave);
+    els.detailCanvas.addEventListener("mousedown", event => {
+      if (chartState.type !== "kline") return;
+      chartState.dragging = true;
+      chartState.dragX = event.clientX;
+      chartState.dragOffset = chartState.offset;
+    });
+    window.addEventListener("mouseup", () => {
+      chartState.dragging = false;
+    });
+    els.detailCanvas.addEventListener("wheel", event => {
+      if (chartState.type !== "kline") return;
+      event.preventDefault();
+      zoomChart(event.deltaY > 0 ? 1 : -1);
+    }, { passive: false });
     els.interval.value = loadRefreshSeconds();
     els.interval.addEventListener("change", scheduleRefresh);
     els.interval.addEventListener("blur", scheduleRefresh);
@@ -1755,6 +2440,7 @@
       const tab = event.target.closest("[data-view]");
       if (!tab) return;
       detailState.view = tab.dataset.view;
+      resetChartState();
       setActiveTab(detailState.view);
       renderDetail();
     });
@@ -1766,6 +2452,9 @@
       if (els.modal.classList.contains("open")) renderDetail();
     });
 
+    applyTheme(localStorage.getItem(THEME_KEY) || "auto");
+    const existingSyncId = syncId();
+    if (existingSyncId) downloadCloudSync(existingSyncId).catch(() => {});
     render();
     refreshAll();
     scheduleRefresh();
