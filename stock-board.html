@@ -102,7 +102,9 @@
       border-radius: var(--radius);
       background: var(--panel);
       box-shadow: 5px 5px 0 rgba(24, 22, 19, .18), var(--shadow);
+      max-height: min(520px, 70vh);
       overflow: hidden;
+      overflow-y: auto;
     }
 
     .suggestions.open { display: block; }
@@ -124,6 +126,7 @@
 
     .suggestion:last-child { border-bottom: 0; }
     .suggestion:hover { background: #f2eadb; }
+    .suggestion.active { background: #e7ecff; }
 
     .suggestion-name {
       font-weight: 800;
@@ -144,6 +147,14 @@
       font-size: 13px;
       font-weight: 800;
       white-space: nowrap;
+    }
+
+    .suggestion mark {
+      padding: 0 1px;
+      border-radius: 3px;
+      background: rgba(234, 168, 58, .32);
+      color: inherit;
+      font-weight: 900;
     }
 
     .btn {
@@ -469,26 +480,34 @@
     }
 
     .chart-tools {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 10px;
+      z-index: 2;
       display: flex;
-      flex-wrap: wrap;
       align-items: center;
+      justify-content: center;
       gap: 8px;
-      padding: 9px 12px;
-      border-bottom: 1px solid #242833;
-      background: #07090d;
+      padding: 0;
+      border-bottom: 0;
+      background: transparent;
       color: #b8beca;
       font-size: 12px;
+      pointer-events: none;
     }
 
     .chart-tool {
-      height: 28px;
-      padding: 0 10px;
+      width: 32px;
+      height: 30px;
+      padding: 0;
       border: 1px solid #2c3240;
       border-radius: 5px;
-      background: #11151d;
+      background: rgba(17, 21, 29, .88);
       color: #d8dde8;
       cursor: pointer;
       font-weight: 700;
+      pointer-events: auto;
     }
 
     .chart-tool:hover {
@@ -499,12 +518,21 @@
     .chart-readout {
       flex: 1;
       min-width: 260px;
+      max-width: min(620px, calc(100% - 190px));
+      padding: 7px 10px;
+      border: 1px solid rgba(44, 50, 64, .86);
+      border-radius: 5px;
+      background: rgba(7, 9, 13, .72);
       color: #c9cfda;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       font-family: Consolas, "Microsoft YaHei UI", monospace;
+      pointer-events: none;
     }
+
+    .chart-tool.nav-left { margin-right: auto; }
+    .chart-tool.nav-right { margin-left: auto; }
 
     .chart-tip {
       position: absolute;
@@ -644,6 +672,26 @@
     :root[data-theme="dark"] .index-chip.flat,
     :root[data-theme="auto"] .index-chip.flat {
       background: #131722;
+    }
+
+    :root[data-theme="dark"] .suggestions,
+    :root[data-theme="auto"] .suggestions {
+      border-color: #242a35;
+      background: #0d1118;
+      box-shadow: 0 18px 36px rgba(0, 0, 0, .38);
+    }
+
+    :root[data-theme="dark"] .suggestion,
+    :root[data-theme="auto"] .suggestion {
+      border-color: #20242d;
+      color: #f2f5fb;
+    }
+
+    :root[data-theme="dark"] .suggestion:hover,
+    :root[data-theme="dark"] .suggestion.active,
+    :root[data-theme="auto"] .suggestion:hover,
+    :root[data-theme="auto"] .suggestion.active {
+      background: #182033;
     }
 
     @media (prefers-color-scheme: light) {
@@ -1285,15 +1333,15 @@
         <button class="tab" data-view="month">月 K</button>
         <button class="tab" data-view="year">年 K</button>
       </div>
-      <div class="chart-tools">
-        <button id="chartPrev" class="chart-tool" type="button">← 上一段</button>
-        <button id="chartNext" class="chart-tool" type="button">下一段 →</button>
-        <button id="chartZoomIn" class="chart-tool" type="button">放大</button>
-        <button id="chartZoomOut" class="chart-tool" type="button">缩小</button>
-        <button id="chartReset" class="chart-tool" type="button">重置</button>
-        <span id="chartReadout" class="chart-readout">移动鼠标查看精确时间、价格和成交量</span>
-      </div>
       <div class="detail-canvas-wrap">
+        <div class="chart-tools">
+          <button id="chartPrev" class="chart-tool nav-left" type="button" title="上一段">&lt;</button>
+          <span id="chartReadout" class="chart-readout">移动鼠标查看精确时间、价格和成交量</span>
+          <button id="chartZoomOut" class="chart-tool" type="button" title="缩小">-</button>
+          <button id="chartReset" class="chart-tool" type="button" title="重置">⟳</button>
+          <button id="chartZoomIn" class="chart-tool" type="button" title="放大">+</button>
+          <button id="chartNext" class="chart-tool nav-right" type="button" title="下一段">&gt;</button>
+        </div>
         <canvas id="detailCanvas" class="detail-canvas"></canvas>
         <div id="chartTip" class="chart-tip"></div>
       </div>
@@ -1311,6 +1359,7 @@
     const API_QUOTE = "https://push2.eastmoney.com/api/qt/ulist.np/get";
     const API_TREND = "https://push2his.eastmoney.com/api/qt/stock/trends2/get";
     const API_KLINE = "https://push2his.eastmoney.com/api/qt/stock/kline/get";
+    const API_MARKET_PROXY = "/api/market";
     const API_SEARCH = "https://searchapi.eastmoney.com/api/suggest/get";
     const SEARCH_TOKEN = "D43BF722C8E33BDC906FB84D85E326E8";
     const DEFAULT_SYMBOLS = ["1.000001", "0.399001", "0.399006", "1.600519", "0.000001"];
@@ -1352,6 +1401,7 @@
     let detailCache = new Map();
     let chartState = { type: null, data: [], offset: 0, window: 90, hover: null, dragging: false, dragX: 0, dragOffset: 0 };
     let suggestions = [];
+    let activeSuggestionIndex = -1;
     let searchTimer = null;
     let refreshTimer = null;
     let syncTimer = null;
@@ -1554,19 +1604,97 @@
       const data = await fetchJsonp(API_SEARCH, {
         input,
         type: "14",
+        count: "30",
         token: SEARCH_TOKEN
       });
+      const q = normalizeQuery(input);
       return (data?.QuotationCodeTable?.Data || [])
         .filter(item => item?.QuoteID && /^\d+\.\d{6}$/.test(item.QuoteID))
-        .slice(0, 8)
         .map(item => ({
           secid: item.QuoteID,
           code: item.Code,
           name: item.Name,
           pinyin: item.PinYin,
           market: item.SecurityTypeName || item.MarketType || "",
-          classify: item.Classify || ""
-        }));
+          classify: item.Classify || "",
+          score: matchScore(q, item)
+        }))
+        .filter(item => item.score < 900)
+        .sort((a, b) => a.score - b.score || a.code.localeCompare(b.code))
+        .slice(0, 20);
+    }
+
+    function normalizeQuery(value) {
+      return String(value || "").trim().toLowerCase().replace(/\s+/g, "");
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function containsSubsequence(text, query) {
+      let cursor = 0;
+      const source = normalizeQuery(text);
+      for (const ch of query) {
+        cursor = source.indexOf(ch, cursor);
+        if (cursor === -1) return false;
+        cursor += 1;
+      }
+      return true;
+    }
+
+    function matchScore(query, item) {
+      if (!query) return 0;
+      const code = normalizeQuery(item.Code);
+      const name = normalizeQuery(item.Name);
+      const pinyin = normalizeQuery(item.PinYin);
+      const fields = [code, name, pinyin];
+      if (code === query) return 0;
+      if (code.startsWith(query)) return 2;
+      if (pinyin.startsWith(query)) return 4;
+      if (name.includes(query)) return 6;
+      if (fields.some(field => field.includes(query))) return 10;
+      if (fields.some(field => containsSubsequence(field, query))) return 18;
+      return 999;
+    }
+
+    function highlightMatch(value, query) {
+      const text = String(value ?? "");
+      const q = normalizeQuery(query);
+      if (!q) return escapeHtml(text);
+      const lower = text.toLowerCase();
+      const exact = lower.indexOf(q);
+      const mark = new Set();
+      if (exact >= 0) {
+        for (let i = exact; i < exact + q.length; i++) mark.add(i);
+      } else {
+        let cursor = 0;
+        for (const ch of q) {
+          const found = lower.indexOf(ch, cursor);
+          if (found === -1) break;
+          mark.add(found);
+          cursor = found + 1;
+        }
+      }
+      let html = "";
+      let open = false;
+      [...text].forEach((ch, i) => {
+        if (mark.has(i) && !open) {
+          html += "<mark>";
+          open = true;
+        }
+        if (!mark.has(i) && open) {
+          html += "</mark>";
+          open = false;
+        }
+        html += escapeHtml(ch);
+      });
+      if (open) html += "</mark>";
+      return html;
     }
 
     function fetchJsonp(url, params) {
@@ -1594,25 +1722,41 @@
     function renderSuggestions(items) {
       suggestions = items;
       if (!items.length) {
+        activeSuggestionIndex = -1;
         els.suggestions.classList.remove("open");
         els.suggestions.innerHTML = "";
         return;
       }
+      if (activeSuggestionIndex < 0 || activeSuggestionIndex >= items.length) activeSuggestionIndex = 0;
+      const keyword = els.input.value.trim();
       els.suggestions.innerHTML = items.map((item, index) => `
-        <button class="suggestion" data-index="${index}" type="button">
+        <button class="suggestion ${index === activeSuggestionIndex ? "active" : ""}" data-index="${index}" type="button">
           <span>
-            <span class="suggestion-name">${item.name || item.code}</span>
-            <div class="suggestion-meta">${item.pinyin || "--"} · ${item.market || item.classify || "--"}</div>
+            <span class="suggestion-name">${highlightMatch(item.name || item.code, keyword)}</span>
+            <div class="suggestion-meta">${highlightMatch(item.pinyin || "--", keyword)} · ${escapeHtml(item.market || item.classify || "--")}</div>
           </span>
-          <span class="suggestion-code">${secidToDisplay(item.secid)}</span>
+          <span class="suggestion-code">${highlightMatch(secidToDisplay(item.secid), keyword)}</span>
         </button>
       `).join("");
       els.suggestions.classList.add("open");
     }
 
+    function moveSuggestion(delta) {
+      if (!suggestions.length) return;
+      activeSuggestionIndex = (activeSuggestionIndex + delta + suggestions.length) % suggestions.length;
+      renderSuggestions(suggestions);
+      els.suggestions.querySelector(`[data-index="${activeSuggestionIndex}"]`)?.scrollIntoView({ block: "nearest" });
+    }
+
+    function selectedSuggestion() {
+      if (!suggestions.length) return null;
+      return suggestions[Math.max(0, Math.min(activeSuggestionIndex, suggestions.length - 1))];
+    }
+
     function scheduleSearch() {
       clearTimeout(searchTimer);
       const keyword = els.input.value.trim();
+      activeSuggestionIndex = -1;
       if (!keyword) {
         renderSuggestions([]);
         return;
@@ -1629,7 +1773,8 @@
     async function resolveInputToSecid() {
       const keyword = els.input.value.trim();
       if (!keyword) return null;
-      if (suggestions.length) return suggestions[0].secid;
+      const selected = selectedSuggestion();
+      if (selected) return selected.secid;
       try {
         const found = await searchStocks(keyword);
         if (found.length) return found[0].secid;
@@ -1640,14 +1785,25 @@
     }
 
     async function fetchTrend(secid, days = 1) {
-      const data = await fetchJson(API_TREND, {
+      const params = {
         secid,
         fields1: "f1,f2,f3",
         fields2: "f51,f53",
         iscr: "0",
         iscca: "0",
         ndays: String(days)
-      });
+      };
+      let data;
+      try {
+        data = await fetchJson(API_TREND, params);
+      } catch (err) {
+        if (!location.protocol.startsWith("http")) throw err;
+        data = await fetchJson(`${API_MARKET_PROXY}/trend`, { secid, days: String(days) });
+      }
+      return parseTrendData(data);
+    }
+
+    function parseTrendData(data) {
       return (data?.data?.trends || [])
         .map(row => {
           const [time, price] = String(row).split(",");
@@ -1899,7 +2055,14 @@
 
     async function loadDetailData(secid, view) {
       const key = detailCacheKey(secid, view);
-      if (view === "today") return { type: "line", points: trendMap.get(secid) || await fetchTrend(secid, 1), days: 1 };
+      if (view === "today") {
+        let points = trendMap.get(secid) || [];
+        if (!points.length) {
+          points = await fetchTrend(secid, 1);
+          if (points.length) trendMap.set(secid, points);
+        }
+        return { type: "line", points, days: 1 };
+      }
       if (detailCache.has(key)) return detailCache.get(key);
 
       let result;
@@ -2409,14 +2572,36 @@
       setTimeout(() => renderSuggestions([]), 180);
     });
     els.input.addEventListener("keydown", event => {
-      if (event.key === "Enter") addSymbol();
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        moveSuggestion(1);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        moveSuggestion(-1);
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        const selected = selectedSuggestion();
+        addSymbol(selected?.secid);
+      } else if (event.key === "Escape") {
+        renderSuggestions([]);
+      }
     });
     els.suggestions.addEventListener("mousedown", event => {
       const item = event.target.closest("[data-index]");
       if (!item) return;
       event.preventDefault();
-      const selected = suggestions[Number(item.dataset.index)];
+      activeSuggestionIndex = Number(item.dataset.index);
+      const selected = selectedSuggestion();
       if (selected) addSymbol(selected.secid);
+    });
+    els.suggestions.addEventListener("mousemove", event => {
+      const item = event.target.closest("[data-index]");
+      if (!item) return;
+      const next = Number(item.dataset.index);
+      if (next !== activeSuggestionIndex) {
+        activeSuggestionIndex = next;
+        renderSuggestions(suggestions);
+      }
     });
     els.grid.addEventListener("click", event => {
       const button = event.target.closest("[data-remove]");
