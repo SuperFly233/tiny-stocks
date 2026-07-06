@@ -1,3 +1,4 @@
 .wrangler/
 __pycache__/
 *.pyc
+stock_float_config.json
