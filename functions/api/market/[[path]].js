@@ -9,11 +9,13 @@ const json = (body, init = {}) =>
   });
 
 const EASTMONEY_TREND = "https://push2his.eastmoney.com/api/qt/stock/trends2/get";
+const EASTMONEY_QUOTE = "https://push2.eastmoney.com/api/qt/ulist.np/get";
 
 export async function onRequest({ request }) {
   const url = new URL(request.url);
   const parts = url.pathname.split("/").filter(Boolean);
   const action = parts[2];
+  if (action === "quote") return quote(url);
   if (action !== "trend") return json({ error: "not found" }, { status: 404 });
 
   const secid = String(url.searchParams.get("secid") || "");
@@ -38,6 +40,32 @@ export async function onRequest({ request }) {
     headers: {
       "content-type": "application/json; charset=utf-8",
       "cache-control": "public, max-age=10"
+    }
+  });
+}
+
+async function quote(url) {
+  const secids = String(url.searchParams.get("secids") || "")
+    .split(",")
+    .map(item => item.trim())
+    .filter(item => /^[01]\.\d{6}$/.test(item))
+    .slice(0, 80);
+  if (!secids.length) return json({ error: "bad secids" }, { status: 400 });
+
+  const qs = new URLSearchParams({
+    fltt: "2",
+    secids: secids.join(","),
+    fields: "f12,f13,f14,f2,f3,f4,f5,f6,f15,f16,f17,f18"
+  });
+  const res = await fetch(`${EASTMONEY_QUOTE}?${qs.toString()}`, {
+    headers: { "user-agent": "Mozilla/5.0" },
+    cf: { cacheTtl: 3, cacheEverything: true }
+  });
+  if (!res.ok) return json({ error: `upstream ${res.status}` }, { status: 502 });
+  return new Response(await res.text(), {
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "public, max-age=3"
     }
   });
 }
