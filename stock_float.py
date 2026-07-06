@@ -1,6 +1,7 @@
 import argparse
 import json
 import math
+import re
 import sys
 import threading
 import time
@@ -25,9 +26,24 @@ DEFAULT_CONFIG = {
     "refresh_seconds": 5,
     "trend_seconds": 45,
     "always_on_top": True,
-    "opacity": 0.9,
+    "opacity": 0.97,
     "geometry": "",
+    "display_metrics": {},
 }
+
+
+DEFAULT_GEOMETRY = "308x520"
+
+
+def usable_geometry(value):
+    match = re.match(r"^(\d+)x(\d+)([+-]\d+[+-]\d+)?$", str(value or ""))
+    if not match:
+        return ""
+    width = int(match.group(1))
+    height = int(match.group(2))
+    if width < 290 or height < 430:
+        return ""
+    return value
 
 
 def load_config():
@@ -170,9 +186,41 @@ def color_for_pct(pct):
     return "#f05a72" if value >= 0 else "#39b86f"
 
 
+METRICS = ("price", "pct", "diff", "amount")
+
+
+def metric_value(metric, quote):
+    pct = quote.get("f3")
+    diff = quote.get("f4")
+    sign_pct = "+" if float(pct or 0) > 0 else ""
+    sign_diff = "+" if float(diff or 0) > 0 else ""
+    if metric == "pct":
+        return f"{sign_pct}{fmt(pct)}%"
+    if metric == "diff":
+        return f"{sign_diff}{fmt(diff)}"
+    if metric == "amount":
+        return fmt_amount(quote.get("f6"))
+    return fmt(quote.get("f2"))
+
+
+def metric_label(metric):
+    return {
+        "price": "PX",
+        "pct": "%",
+        "diff": "+/-",
+        "amount": "VOL",
+    }.get(metric, metric.upper())
+
+
+def metric_color(metric, quote):
+    if metric in ("pct", "diff", "price"):
+        return color_for_pct(quote.get("f3"))
+    return "#a8b0bf"
+
+
 class SparkLine(tk.Canvas):
     def __init__(self, master):
-        super().__init__(master, height=18, bg="#05070a", highlightthickness=0, bd=0)
+        super().__init__(master, height=48, bg="#05070a", highlightthickness=0, bd=0)
         self.points = []
         self.line_color = "#39b86f"
         self.bind("<Configure>", lambda _event: self.draw())
@@ -202,10 +250,14 @@ class SparkLine(tk.Canvas):
 
 
 class StockRow(tk.Frame):
-    def __init__(self, master, secid, remove_callback):
-        super().__init__(master, bg="#0b0f16", padx=7, pady=5)
+    def __init__(self, master, secid, remove_callback, metric_callback, drag_callback):
+        super().__init__(master, bg="#0b0f16", padx=8, pady=7)
         self.secid = secid
         self.remove_callback = remove_callback
+        self.metric_callback = metric_callback
+        self.drag_callback = drag_callback
+        self.quote = None
+        self.main_metric = "price"
 
         self.top = tk.Frame(self, bg="#0b0f16")
         self.top.pack(fill="x")
@@ -218,41 +270,50 @@ class StockRow(tk.Frame):
             anchor="w",
         )
         self.name.pack(side="left", fill="x", expand=True)
-        self.pct = tk.Label(
+        self.code = tk.Label(
             self.top,
             text="--",
-            fg="#a8b0bf",
-            bg="#0b0f16",
-            font=("Consolas", 9, "bold"),
-            anchor="e",
-        )
-        self.pct.pack(side="right")
-
-        self.mid = tk.Frame(self, bg="#0b0f16")
-        self.mid.pack(fill="x", pady=(1, 1))
-        self.price = tk.Label(
-            self.mid,
-            text="--",
-            fg="#f2f5fb",
-            bg="#0b0f16",
-            font=("Consolas", 14, "bold"),
-            anchor="w",
-        )
-        self.price.pack(side="left")
-        self.meta = tk.Label(
-            self.mid,
-            text="--",
-            fg="#798292",
+            fg="#657084",
             bg="#0b0f16",
             font=("Consolas", 8),
             anchor="e",
         )
-        self.meta.pack(side="right")
+        self.code.pack(side="right")
+
+        self.mid = tk.Frame(self, bg="#0b0f16")
+        self.mid.pack(fill="x", pady=(3, 3))
+        self.main_value = tk.Label(
+            self.mid,
+            text="--",
+            fg="#f2f5fb",
+            bg="#0b0f16",
+            font=("Consolas", 19, "bold"),
+            anchor="w",
+        )
+        self.main_value.pack(side="left", fill="x", expand=True)
+
+        self.side = tk.Frame(self.mid, bg="#0b0f16")
+        self.side.pack(side="right")
+        self.side_labels = {}
+        for metric in METRICS:
+            label = tk.Label(
+                self.side,
+                text="--",
+                fg="#798292",
+                bg="#0b0f16",
+                font=("Consolas", 8, "bold"),
+                anchor="e",
+                cursor="hand2",
+            )
+            label.bind("<Button-1>", lambda event, m=metric: self.metric_callback(self.secid, m))
+            self.side_labels[metric] = label
 
         self.spark = SparkLine(self)
         self.spark.pack(fill="x")
 
         self.bind_recursive("<Button-3>", self.menu)
+        self.bind_recursive("<ButtonPress-1>", lambda event: self.drag_callback("start", self.secid, event))
+        self.bind_recursive("<ButtonRelease-1>", lambda event: self.drag_callback("end", self.secid, event))
 
     def bind_recursive(self, event_name, callback):
         self.bind(event_name, callback)
@@ -266,15 +327,33 @@ class StockRow(tk.Frame):
         menu.add_command(label=f"Remove {display_code(self.secid)}", command=lambda: self.remove_callback(self.secid))
         menu.tk_popup(event.x_root, event.y_root)
 
-    def update(self, quote, trend):
-        pct = quote.get("f3")
-        diff = quote.get("f4")
-        color = color_for_pct(pct)
-        sign = "+" if float(pct or 0) > 0 else ""
+    def set_main_metric(self, metric):
+        self.main_metric = metric if metric in METRICS else "price"
+        if self.quote:
+            self.paint_metrics()
+
+    def paint_metrics(self):
+        quote = self.quote
+        color = metric_color(self.main_metric, quote)
+        self.main_value.config(text=metric_value(self.main_metric, quote), fg=color)
+        for metric, label in self.side_labels.items():
+            if metric == self.main_metric:
+                label.pack_forget()
+                continue
+            label.config(
+                text=f"{metric_label(metric)} {metric_value(metric, quote)}",
+                fg=metric_color(metric, quote),
+            )
+            if not label.winfo_manager():
+                label.pack(anchor="e")
+
+    def update(self, quote, trend, main_metric="price"):
+        self.quote = quote
+        self.main_metric = main_metric if main_metric in METRICS else "price"
+        color = color_for_pct(quote.get("f3"))
         self.name.config(text=(quote.get("f14") or display_code(self.secid))[:12])
-        self.price.config(text=fmt(quote.get("f2")), fg=color)
-        self.pct.config(text=f"{sign}{fmt(pct)}%", fg=color)
-        self.meta.config(text=f"{sign}{fmt(diff)}  {fmt_amount(quote.get('f6'))}")
+        self.code.config(text=display_code(self.secid))
+        self.paint_metrics()
         self.spark.set_data(trend, color)
 
 
@@ -285,38 +364,54 @@ class TinyStockWindow:
         self.quotes = {}
         self.trends = {}
         self.rows = {}
+        self.display_metrics = dict(self.config.get("display_metrics") or {})
         self.running = True
         self.next_quote_at = 0
         self.next_trend_at = 0
         self.drag_origin = None
+        self.row_drag = None
 
         self.root = tk.Tk()
         self.root.title("Tiny Stocks")
+        self.root.overrideredirect(True)
         self.root.configure(bg="#05070a")
         self.root.attributes("-topmost", bool(self.config.get("always_on_top", True)))
         self.root.attributes("-alpha", float(self.config.get("opacity", 0.9)))
-        self.root.minsize(196, 92)
+        self.root.minsize(280, 360)
         self.root.protocol("WM_DELETE_WINDOW", self.close)
 
-        geometry = self.config.get("geometry")
+        geometry = usable_geometry(self.config.get("geometry"))
         if geometry:
             self.root.geometry(geometry)
         else:
-            self.root.geometry("228x285+120+80")
+            self.root.geometry(f"{DEFAULT_GEOMETRY}+120+80")
             self.root.update_idletasks()
-            x = max(0, self.root.winfo_screenwidth() - 246)
+            x = max(0, self.root.winfo_screenwidth() - 326)
             y = 42
-            self.root.geometry(f"228x285+{x}+{y}")
+            self.root.geometry(f"{DEFAULT_GEOMETRY}+{x}+{y}")
 
         self.build()
         self.render_rows()
         self.tick()
 
     def build(self):
-        self.header = tk.Frame(self.root, bg="#05070a", padx=7, pady=5)
+        self.frame = tk.Frame(self.root, bg="#151b25", padx=1, pady=1)
+        self.frame.pack(fill="both", expand=True)
+
+        self.inner = tk.Frame(self.frame, bg="#05070a")
+        self.inner.pack(fill="both", expand=True)
+
+        self.header = tk.Frame(self.inner, bg="#05070a", padx=8, pady=6)
         self.header.pack(fill="x")
         self.header.bind("<ButtonPress-1>", self.start_drag)
         self.header.bind("<B1-Motion>", self.drag)
+
+        lights = tk.Frame(self.header, bg="#05070a")
+        lights.pack(side="left", padx=(0, 8))
+        for color, cmd in [("#f05a72", self.close), ("#e0a942", self.minimize), ("#39b86f", self.toggle_topmost)]:
+            dot = tk.Label(lights, text="●", fg=color, bg="#05070a", font=("Segoe UI", 10, "bold"), cursor="hand2")
+            dot.pack(side="left", padx=(0, 3))
+            dot.bind("<Button-1>", lambda _event, fn=cmd: fn())
 
         self.title = tk.Label(
             self.header,
@@ -335,7 +430,7 @@ class TinyStockWindow:
         )
         self.status.pack(side="left", padx=(8, 0))
 
-        for text, cmd in [("+", self.add_symbol), ("↻", self.force_refresh), ("×", self.close)]:
+        for text, cmd in [("+", self.add_symbol), ("↻", self.force_refresh)]:
             btn = tk.Button(
                 self.header,
                 text=text,
@@ -352,7 +447,7 @@ class TinyStockWindow:
             )
             btn.pack(side="right", padx=(4, 0))
 
-        self.body = tk.Frame(self.root, bg="#05070a", padx=5)
+        self.body = tk.Frame(self.inner, bg="#05070a", padx=6, pady=2)
         self.body.pack(fill="both", expand=True)
 
         self.root.bind("<Button-3>", self.menu)
@@ -364,8 +459,9 @@ class TinyStockWindow:
         menu.add_command(label="Refresh now", command=self.force_refresh)
         menu.add_separator()
         menu.add_command(label="Topmost on/off", command=self.toggle_topmost)
+        menu.add_command(label="Opacity slider", command=self.opacity_panel)
+        menu.add_command(label="Opacity 100%", command=lambda: self.set_opacity(1.0))
         menu.add_command(label="Opacity 90%", command=lambda: self.set_opacity(0.9))
-        menu.add_command(label="Opacity 75%", command=lambda: self.set_opacity(0.75))
         menu.add_command(label="Reset symbols", command=self.reset_symbols)
         menu.tk_popup(event.x_root, event.y_root)
 
@@ -378,13 +474,83 @@ class TinyStockWindow:
         sx, sy, wx, wy = self.drag_origin
         self.root.geometry(f"+{wx + event.x_root - sx}+{wy + event.y_root - sy}")
 
+    def minimize(self):
+        self.root.overrideredirect(False)
+        self.root.iconify()
+        self.root.after(300, lambda: self.root.overrideredirect(True))
+
+    def opacity_panel(self):
+        panel = tk.Toplevel(self.root)
+        panel.title("Opacity")
+        panel.configure(bg="#0b0f16")
+        panel.geometry(f"220x70+{self.root.winfo_x()+20}+{self.root.winfo_y()+40}")
+        panel.attributes("-topmost", True)
+        tk.Label(panel, text="Opacity", fg="#f2f5fb", bg="#0b0f16", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=10, pady=(8, 0))
+        value = tk.DoubleVar(value=float(self.root.attributes("-alpha")))
+        slider = tk.Scale(
+            panel,
+            from_=0.55,
+            to=1.0,
+            resolution=0.01,
+            orient="horizontal",
+            variable=value,
+            command=lambda v: self.set_opacity(float(v)),
+            bg="#0b0f16",
+            fg="#f2f5fb",
+            troughcolor="#1a2230",
+            highlightthickness=0,
+        )
+        slider.pack(fill="x", padx=10)
+
+    def set_row_metric(self, secid, metric):
+        if metric not in METRICS:
+            return
+        self.display_metrics[secid] = metric
+        self.config["display_metrics"] = self.display_metrics
+        save_config(self.config)
+        row = self.rows.get(secid)
+        if row:
+            row.set_main_metric(metric)
+
+    def row_drag_event(self, action, secid, event):
+        if action == "start":
+            self.row_drag = {"secid": secid, "y": event.y_root}
+            return
+        if action != "end" or not self.row_drag or self.row_drag.get("secid") != secid:
+            return
+        if abs(event.y_root - self.row_drag["y"]) < 12:
+            self.row_drag = None
+            return
+        target_index = 0
+        for index, row_secid in enumerate(self.symbols):
+            row = self.rows.get(row_secid)
+            if row and event.y_root > row.winfo_rooty() + row.winfo_height() / 2:
+                target_index = index + 1
+        self.move_symbol(secid, target_index)
+        self.row_drag = None
+
+    def move_symbol(self, secid, target_index):
+        if secid not in self.symbols:
+            return
+        current = self.symbols.index(secid)
+        item = self.symbols.pop(current)
+        if target_index > current:
+            target_index -= 1
+        target_index = max(0, min(target_index, len(self.symbols)))
+        self.symbols.insert(target_index, item)
+        self.config["symbols"] = self.symbols
+        save_config(self.config)
+        self.render_rows()
+        self.apply_data(self.quotes, self.trends, None)
+
     def render_rows(self):
         for child in self.body.winfo_children():
             child.destroy()
         self.rows.clear()
         for secid in self.symbols:
-            row = StockRow(self.body, secid, self.remove_symbol)
-            row.pack(fill="x", pady=(0, 4))
+            row = StockRow(self.body, secid, self.remove_symbol, self.set_row_metric, self.row_drag_event)
+            row.set_main_metric(self.display_metrics.get(secid, "price"))
+            row.pack(fill="x", pady=(0, 6))
             self.rows[secid] = row
 
     def tick(self):
@@ -434,7 +600,7 @@ class TinyStockWindow:
         for secid, row in self.rows.items():
             quote = self.quotes.get(secid)
             if quote:
-                row.update(quote, self.trends.get(secid, []))
+                row.update(quote, self.trends.get(secid, []), self.display_metrics.get(secid, "price"))
                 updated += 1
         self.status.config(text=time.strftime("%H:%M:%S"), fg="#798292" if updated else "#e0a942")
 
@@ -477,6 +643,7 @@ class TinyStockWindow:
         self.running = False
         self.config["geometry"] = self.root.geometry()
         self.config["symbols"] = self.symbols
+        self.config["display_metrics"] = self.display_metrics
         save_config(self.config)
         self.root.destroy()
 

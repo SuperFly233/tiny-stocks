@@ -19,10 +19,19 @@ const cleanPayload = value => {
     : [];
   const refreshSeconds = Math.max(1, Math.min(3600, Math.round(Number(value.refreshSeconds) || 5)));
   const theme = ["auto", "light", "dark"].includes(value.theme) ? value.theme : "auto";
+  const displayMetrics = {};
+  if (value.displayMetrics && typeof value.displayMetrics === "object") {
+    for (const [secid, metric] of Object.entries(value.displayMetrics)) {
+      if (/^[01]\.\d{6}$/.test(secid) && ["price", "pct", "diff", "amount"].includes(metric)) {
+        displayMetrics[secid] = metric;
+      }
+    }
+  }
   return {
     symbols,
     refreshSeconds,
     theme,
+    displayMetrics,
     updatedAt: new Date().toISOString()
   };
 };

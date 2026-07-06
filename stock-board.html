@@ -1074,11 +1074,44 @@
     }
 
     .chart-wrap {
-      height: 44px;
+      height: 62px;
       margin: 0;
       border: 0;
       border-radius: 0;
       background: transparent;
+    }
+
+    .card.dragging {
+      opacity: .45;
+    }
+
+    .card.drop-target {
+      box-shadow: inset 0 2px 0 var(--blue);
+    }
+
+    .metric-button {
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: inherit;
+      text-align: right;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .metric-button:hover {
+      color: var(--blue);
+    }
+
+    .metric-button[data-metric="amount"] {
+      color: #7f87a5 !important;
+    }
+
+    .index-chip.dragging,
+    .index-chip.drop-target {
+      outline: 2px solid var(--blue);
+      outline-offset: 2px;
     }
 
     .facts {
@@ -1356,6 +1389,7 @@
     const REFRESH_KEY = "lite-stock-board-refresh-v1";
     const THEME_KEY = "lite-stock-board-theme-v1";
     const SYNC_KEY = "lite-stock-board-sync-id-v1";
+    const DISPLAY_KEY = "lite-stock-board-display-v1";
     const API_QUOTE = "https://push2.eastmoney.com/api/qt/ulist.np/get";
     const API_TREND = "https://push2his.eastmoney.com/api/qt/stock/trends2/get";
     const API_KLINE = "https://push2his.eastmoney.com/api/qt/stock/kline/get";
@@ -1397,6 +1431,7 @@
     let symbols = loadSymbols();
     let quoteMap = new Map();
     let trendMap = new Map();
+    let displayMetrics = loadDisplayMetrics();
     let detailState = { secid: null, view: "today", loading: false };
     let detailCache = new Map();
     let chartState = { type: null, data: [], offset: 0, window: 90, hover: null, dragging: false, dragX: 0, dragOffset: 0 };
@@ -1424,6 +1459,20 @@
 
     function saveSymbols() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(symbols));
+      queueCloudSync();
+    }
+
+    function loadDisplayMetrics() {
+      try {
+        const data = JSON.parse(localStorage.getItem(DISPLAY_KEY) || "{}");
+        return data && typeof data === "object" ? data : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveDisplayMetrics() {
+      localStorage.setItem(DISPLAY_KEY, JSON.stringify(displayMetrics));
       queueCloudSync();
     }
 
@@ -1488,6 +1537,37 @@
       return "flat";
     }
 
+    const METRICS = ["price", "pct", "diff", "amount"];
+
+    function metricLabel(metric) {
+      return ({ price: "最新", pct: "涨跌幅", diff: "涨跌额", amount: "成交额" })[metric] || metric;
+    }
+
+    function metricValue(metric, q) {
+      const pct = Number(q?.f3);
+      const diff = Number(q?.f4);
+      const pctSign = pct > 0 ? "+" : "";
+      const diffSign = diff > 0 ? "+" : "";
+      if (metric === "pct") return `${pctSign}${formatNum(q?.f3)}%`;
+      if (metric === "diff") return `${diffSign}${formatNum(q?.f4)}`;
+      if (metric === "amount") return formatAmount(q?.f6);
+      return formatNum(q?.f2);
+    }
+
+    function metricClass(metric, q) {
+      if (metric === "amount") return "";
+      return quoteClass(q);
+    }
+
+    function activeMetric(secid) {
+      return METRICS.includes(displayMetrics[secid]) ? displayMetrics[secid] : "price";
+    }
+
+    function sideMetrics(secid) {
+      const main = activeMetric(secid);
+      return METRICS.filter(metric => metric !== main).slice(0, 3);
+    }
+
     function applyTheme(theme = localStorage.getItem(THEME_KEY) || "auto") {
       const value = ["auto", "light", "dark"].includes(theme) ? theme : "auto";
       document.documentElement.dataset.theme = value;
@@ -1509,6 +1589,7 @@
         symbols,
         refreshSeconds: Number(els.interval.value) || loadRefreshSeconds(),
         theme: localStorage.getItem(THEME_KEY) || "auto",
+        displayMetrics,
         updatedAt: new Date().toISOString()
       };
     }
@@ -1552,6 +1633,10 @@
         scheduleRefresh();
       }
       if (data.theme) applyTheme(data.theme);
+      if (data.displayMetrics && typeof data.displayMetrics === "object") {
+        displayMetrics = data.displayMetrics;
+        saveDisplayMetrics();
+      }
       render();
       refreshAll();
       return true;
@@ -1935,7 +2020,7 @@
         const cls = quoteClass(q);
         const sign = Number(q?.f3) > 0 ? "+" : "";
         return `
-          <button class="index-chip ${cls}" data-index-open="${secid}" type="button">
+          <button class="index-chip ${cls}" data-index-open="${secid}" draggable="true" type="button">
             <div class="index-name">${q?.f14 || secidToDisplay(secid)}</div>
             <div class="index-price">${formatNum(q?.f2)}</div>
             <div class="index-change"><span>${sign}${formatNum(q?.f4)}</span><span>${sign}${formatNum(q?.f3)}%</span></div>
@@ -1947,9 +2032,10 @@
       els.grid.innerHTML = rowSymbols.map(secid => {
         const q = quoteMap.get(secid);
         const cls = quoteClass(q);
-        const sign = Number(q?.f3) > 0 ? "+" : "";
+        const mainMetric = activeMetric(secid);
+        const side = sideMetrics(secid);
         return `
-          <article class="card ${cls}" data-secid="${secid}">
+          <article class="card ${cls}" data-secid="${secid}" draggable="true">
             <div class="card-head">
               <div>
                 <div class="name">${q?.f14 || "等待数据"}</div>
@@ -1957,15 +2043,10 @@
               </div>
             </div>
             <div class="price-row">
-              <div class="price">${formatNum(q?.f2)}</div>
-              <div class="change">${sign}${formatNum(q?.f3)}%</div>
-              <div class="change">${sign}${formatNum(q?.f4)}</div>
-            </div>
-            <div class="facts">
-              <div class="fact"><div class="label">今开</div><div class="value">${formatNum(q?.f17)}</div></div>
-              <div class="fact"><div class="label">最高</div><div class="value">${formatNum(q?.f15)}</div></div>
-              <div class="fact"><div class="label">最低</div><div class="value">${formatNum(q?.f16)}</div></div>
-              <div class="fact"><div class="label">成交额</div><div class="value">${formatAmount(q?.f6)}</div></div>
+              <button class="price metric-button ${metricClass(mainMetric, q)}" data-metric="${mainMetric}" title="${metricLabel(mainMetric)}">${metricValue(mainMetric, q)}</button>
+              ${side.map(metric => `
+                <button class="change metric-button ${metricClass(metric, q)}" data-metric="${metric}" title="${metricLabel(metric)}">${metricValue(metric, q)}</button>
+              `).join("")}
             </div>
             <div class="chart-wrap">
               <canvas data-chart="${secid}" aria-label="${q?.f14 || secid} 当日分时图"></canvas>
@@ -2515,6 +2596,25 @@
       render();
     }
 
+    function setDisplayMetric(secid, metric) {
+      if (!METRICS.includes(metric)) return;
+      displayMetrics[secid] = metric;
+      saveDisplayMetrics();
+      render();
+    }
+
+    function moveSymbolBefore(source, target) {
+      if (!source || !target || source === target) return;
+      const from = symbols.indexOf(source);
+      const to = symbols.indexOf(target);
+      if (from < 0 || to < 0) return;
+      const [item] = symbols.splice(from, 1);
+      const adjusted = from < to ? to - 1 : to;
+      symbols.splice(adjusted, 0, item);
+      saveSymbols();
+      render();
+    }
+
     function resetSymbols() {
       symbols = DEFAULT_SYMBOLS.slice();
       saveSymbols();
@@ -2610,12 +2710,50 @@
         removeSymbol(button.dataset.remove);
         return;
       }
+      const metric = event.target.closest("[data-metric]");
+      if (metric) {
+        event.stopPropagation();
+        const card = event.target.closest("[data-secid]");
+        if (card) setDisplayMetric(card.dataset.secid, metric.dataset.metric);
+        return;
+      }
       const card = event.target.closest("[data-secid]");
       if (card) openDetail(card.dataset.secid);
     });
     els.marketStrip.addEventListener("click", event => {
       const chip = event.target.closest("[data-index-open]");
       if (chip) openDetail(chip.dataset.indexOpen);
+    });
+    let draggedSecid = null;
+    document.addEventListener("dragstart", event => {
+      const source = event.target.closest("[data-secid], [data-index-open]");
+      if (!source) return;
+      draggedSecid = source.dataset.secid || source.dataset.indexOpen;
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", draggedSecid);
+      source.classList.add("dragging");
+    });
+    document.addEventListener("dragover", event => {
+      const target = event.target.closest("[data-secid], [data-index-open]");
+      if (!target || !draggedSecid) return;
+      event.preventDefault();
+      target.classList.add("drop-target");
+    });
+    document.addEventListener("dragleave", event => {
+      event.target.closest("[data-secid], [data-index-open]")?.classList.remove("drop-target");
+    });
+    document.addEventListener("drop", event => {
+      const target = event.target.closest("[data-secid], [data-index-open]");
+      if (!target || !draggedSecid) return;
+      event.preventDefault();
+      const targetSecid = target.dataset.secid || target.dataset.indexOpen;
+      document.querySelectorAll(".dragging,.drop-target").forEach(el => el.classList.remove("dragging", "drop-target"));
+      moveSymbolBefore(draggedSecid, targetSecid);
+      draggedSecid = null;
+    });
+    document.addEventListener("dragend", () => {
+      draggedSecid = null;
+      document.querySelectorAll(".dragging,.drop-target").forEach(el => el.classList.remove("dragging", "drop-target"));
     });
     els.detailClose.addEventListener("click", closeDetail);
     els.modal.addEventListener("click", event => {
