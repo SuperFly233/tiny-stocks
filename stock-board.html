@@ -2772,6 +2772,13 @@
       if (chartState.type === "kline") {
         chartState.offset = Math.max(0, chartState.offset + direction * Math.max(5, Math.round(chartState.window * .35)));
       } else {
+        if ((chartState.days || 1) === 1 && direction < 0) {
+          detailState.view = "five";
+          resetChartState();
+          setActiveTab("five");
+          renderDetail();
+          return;
+        }
         const size = Math.max(1, Math.round(chartState.data.length / Math.max(1, chartState.days || 1)));
         chartState.hover = Math.max(0, Math.min(chartState.data.length - 1, (chartState.hover ?? chartState.data.length - 1) + direction * size));
       }
