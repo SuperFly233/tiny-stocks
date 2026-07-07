@@ -18,14 +18,14 @@ const cleanId = value => String(value || "")
 
 const cleanPayload = value => {
   const symbols = Array.isArray(value.symbols)
-    ? [...new Set(value.symbols.map(String).filter(item => /^[01]\.\d{6}$/.test(item)))].slice(0, 80)
+    ? [...new Set(value.symbols.map(String).filter(item => /^[0-9A-Z]+\.[A-Za-z0-9_.-]+$/.test(item)))].slice(0, 80)
     : [];
   const refreshSeconds = Math.max(1, Math.min(3600, Math.round(Number(value.refreshSeconds) || 5)));
   const theme = ["auto", "light", "dark"].includes(value.theme) ? value.theme : "auto";
   const displayMetrics = {};
   if (value.displayMetrics && typeof value.displayMetrics === "object") {
     for (const [secid, metric] of Object.entries(value.displayMetrics)) {
-      if (/^[01]\.\d{6}$/.test(secid) && ["price", "pct", "diff", "amount"].includes(metric)) {
+      if (/^[0-9A-Z]+\.[A-Za-z0-9_.-]+$/.test(secid) && ["price", "pct", "diff", "amount"].includes(metric)) {
         displayMetrics[secid] = metric;
       }
     }
@@ -35,13 +35,14 @@ const cleanPayload = value => {
     : {};
   const floatSettings = {
     sizeMode: ["micro", "tiny", "normal"].includes(sourceFloat.sizeMode) ? sourceFloat.sizeMode : "normal",
-    layoutMode: ["list", "row", "grid"].includes(sourceFloat.layoutMode) ? sourceFloat.layoutMode : "list"
+    layoutMode: ["auto", "list", "row", "grid"].includes(sourceFloat.layoutMode) ? sourceFloat.layoutMode : "auto"
   };
   return {
     symbols,
     refreshSeconds,
     theme,
     displayMetrics,
+    rightEdge: value.rightEdge === "latest" ? "latest" : "close",
     accountMode: value.accountMode === "reserved-default" ? "reserved-default" : "reserved-default",
     defaultUserId: "default-user",
     floatSettings,

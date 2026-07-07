@@ -33,7 +33,7 @@ DEFAULT_CONFIG = {
     "geometry": "",
     "display_metrics": {},
     "size_mode": "normal",
-    "layout_mode": "list",
+    "layout_mode": "auto",
     "focus_index": 0,
     "cloud_sync": True,
 }
@@ -64,7 +64,7 @@ def size_mode(config):
 
 
 def layout_mode(config):
-    return config.get("layout_mode") if config.get("layout_mode") in {"list", "row", "grid"} else "list"
+    return config.get("layout_mode") if config.get("layout_mode") in {"auto", "list", "row", "grid"} else "auto"
 
 
 def is_index(secid):
@@ -94,7 +94,7 @@ def clean_cloud_symbols(value):
     items = []
     for item in value:
         text = str(item)
-        if re.match(r"^[01]\.\d{6}$", text) and text not in items:
+        if re.match(r"^[0-9A-Z]+\.[A-Za-z0-9_.-]+$", text) and text not in items:
             items.append(text)
     return items
 
@@ -123,7 +123,7 @@ def apply_cloud_sync(config):
     float_settings = data.get("floatSettings") if isinstance(data.get("floatSettings"), dict) else {}
     if float_settings.get("sizeMode") in GEOMETRIES:
         config["size_mode"] = float_settings["sizeMode"]
-    if float_settings.get("layoutMode") in {"list", "row", "grid"}:
+    if float_settings.get("layoutMode") in {"auto", "list", "row", "grid"}:
         config["layout_mode"] = float_settings["layoutMode"]
     return config
 
@@ -164,6 +164,12 @@ def normalize_symbol(raw):
         return None
     if len(text) == 8 and text[1] == "." and text[0] in "01" and text[2:].isdigit():
         return text
+    if text in {"ndx", "nasdaq", "nasdaq100"}:
+        return "100.NDX"
+    if text in {"dji", "djia", "dow"}:
+        return "100.DJIA"
+    if text in {"spx", "sp500"}:
+        return "100.SPX"
     if text.startswith("sh") and len(text) == 8 and text[2:].isdigit():
         return "1." + text[2:]
     if text.startswith("sz") and len(text) == 8 and text[2:].isdigit():
@@ -177,6 +183,8 @@ def normalize_symbol(raw):
 
 def display_code(secid):
     market, code = secid.split(".")
+    if market == "100":
+        return "US" + code
     if market == "1":
         return "SH" + code
     if code.startswith(("8", "9")):
@@ -518,6 +526,7 @@ class TinyStockWindow:
         self.drag_origin = None
         self.row_drag = None
         self.sync_timer = None
+        self.layout_timer = None
 
         self.root = tk.Tk()
         self.root.title("Tiny Stocks")
@@ -527,6 +536,7 @@ class TinyStockWindow:
         self.root.resizable(True, True)
         self.root.minsize(162 if self.mode == "micro" else 190 if self.mode == "tiny" else 280, 118 if self.mode == "micro" else 220 if self.mode == "tiny" else 360)
         self.root.protocol("WM_DELETE_WINDOW", self.close)
+        self.root.bind("<Configure>", self.on_resize)
 
         geometry = usable_geometry(self.config.get("geometry"))
         if geometry:
@@ -564,6 +574,32 @@ class TinyStockWindow:
             upload_cloud_sync(config)
         except Exception:
             pass
+
+    def on_resize(self, event):
+        if event.widget is not self.root or self.layout != "auto":
+            return
+        if self.layout_timer:
+            self.root.after_cancel(self.layout_timer)
+        self.layout_timer = self.root.after(180, self.reflow_auto_layout)
+
+    def reflow_auto_layout(self):
+        self.layout_timer = None
+        self.render_rows()
+        self.apply_data(self.quotes, self.trends, None)
+
+    def effective_layout(self):
+        if self.layout != "auto" or self.mode == "micro":
+            return self.layout
+        width = max(1, self.root.winfo_width())
+        height = max(1, self.root.winfo_height())
+        stock_count = len([secid for secid in self.symbols if not is_index(secid)])
+        if stock_count <= 1:
+            return "list"
+        if width >= 520 and height <= 300:
+            return "row"
+        if width >= 420 and stock_count >= 3:
+            return "grid"
+        return "list"
 
     def build(self):
         self.header = tk.Frame(self.root, bg="#05070a", padx=6 if self.mode == "micro" else 8, pady=3 if self.mode == "micro" else 6)
@@ -626,6 +662,7 @@ class TinyStockWindow:
         menu.add_command(label="Tiny mode", command=lambda: self.set_size_mode("tiny"))
         menu.add_command(label="Normal mode", command=lambda: self.set_size_mode("normal"))
         menu.add_separator()
+        menu.add_command(label="Layout: auto", command=lambda: self.set_layout_mode("auto"))
         menu.add_command(label="Layout: list", command=lambda: self.set_layout_mode("list"))
         menu.add_command(label="Layout: row", command=lambda: self.set_layout_mode("row"))
         menu.add_command(label="Layout: grid", command=lambda: self.set_layout_mode("grid"))
@@ -681,7 +718,7 @@ class TinyStockWindow:
         tk.Label(panel, text="Layout", fg="#f2f5fb", bg="#0b0f16", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=12, pady=(4, 0))
         layout_row = tk.Frame(panel, bg="#0b0f16")
         layout_row.pack(fill="x", padx=12, pady=6)
-        for label, mode in [("list", "list"), ("row", "row"), ("grid", "grid")]:
+        for label, mode in [("auto", "auto"), ("list", "list"), ("row", "row"), ("grid", "grid")]:
             tk.Button(layout_row, text=label, command=lambda m=mode: self.set_layout_mode(m), bg="#121823", fg="#e8edf6", relief="flat").pack(side="left", fill="x", expand=True, padx=(0, 6))
 
     def set_size_mode(self, mode):
@@ -700,7 +737,7 @@ class TinyStockWindow:
         self.apply_data(self.quotes, self.trends, None)
 
     def set_layout_mode(self, mode):
-        self.layout = mode if mode in {"list", "row", "grid"} else "list"
+        self.layout = mode if mode in {"auto", "list", "row", "grid"} else "auto"
         self.config["layout_mode"] = self.layout
         self.save_and_sync()
         self.render_rows()
@@ -773,12 +810,13 @@ class TinyStockWindow:
             focus = max(0, min(int(self.config.get("focus_index", 0) or 0), max(0, len(stock_symbols) - 1)))
             stock_symbols = stock_symbols[focus:focus + 1]
 
+        effective_layout = self.effective_layout()
         for index, secid in enumerate(stock_symbols):
             row = StockRow(self.body, secid, self.remove_symbol, self.set_row_metric, self.row_drag_event, self.mode)
             row.set_main_metric(self.display_metrics.get(secid, "price"))
-            if self.layout == "row":
+            if effective_layout == "row":
                 row.pack(side="left", fill="both", expand=True, padx=(0, 5), pady=(0, 5))
-            elif self.layout == "grid":
+            elif effective_layout == "grid":
                 columns = 2 if self.root.winfo_width() < 560 else 3
                 row.grid(row=index // columns, column=index % columns, sticky="nsew", padx=3, pady=3)
                 self.body.grid_columnconfigure(index % columns, weight=1)

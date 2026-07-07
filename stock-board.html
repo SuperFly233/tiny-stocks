@@ -87,6 +87,12 @@
 
     .symbol-input { width: min(280px, 68vw); }
 
+    .search-type {
+      width: 78px;
+      padding: 0 7px;
+      box-shadow: 3px 3px 0 rgba(24, 22, 19, .1);
+    }
+
     .searchbox {
       position: relative;
     }
@@ -206,6 +212,11 @@
       border-left: 5px solid var(--ink);
       padding-left: 10px;
     }
+
+    .ticker-item.up { color: var(--red); font-weight: 800; }
+    .ticker-item.down { color: var(--green); font-weight: 800; }
+    .ticker-item.flat { color: var(--muted); }
+    .ticker-sep { color: color-mix(in srgb, var(--muted) 55%, transparent); padding: 0 6px; }
 
     .grid {
       display: grid;
@@ -486,6 +497,38 @@
       font-size: 12px;
     }
 
+    .detail-quote-strip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 10px 16px;
+      margin-top: 8px;
+      font-family: Consolas, "Microsoft YaHei UI", monospace;
+    }
+
+    .detail-quote-price {
+      font-size: 30px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .detail-quote-change {
+      font-size: 17px;
+      font-weight: 900;
+    }
+
+    .detail-quote-time {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .detail-quote-strip.up .detail-quote-price,
+    .detail-quote-strip.up .detail-quote-change { color: var(--red); }
+    .detail-quote-strip.down .detail-quote-price,
+    .detail-quote-strip.down .detail-quote-change { color: var(--green); }
+    .detail-quote-strip.flat .detail-quote-price,
+    .detail-quote-strip.flat .detail-quote-change { color: var(--muted); }
+
     .detail-close {
       width: 34px;
       height: 34px;
@@ -607,10 +650,10 @@
       display: none;
       min-width: 210px;
       padding: 8px 10px;
-      border: 1px solid #333947;
+      border: 1px solid var(--line);
       border-radius: 6px;
-      background: rgba(8, 10, 14, .94);
-      color: #eef2f7;
+      background: var(--panel);
+      color: var(--ink);
       box-shadow: 0 16px 40px rgba(0, 0, 0, .28);
       font-size: 12px;
       line-height: 1.55;
@@ -808,6 +851,22 @@
 
       :root[data-theme="auto"] .index-chip.flat {
         background: #eef1fb;
+      }
+
+      :root[data-theme="auto"] .suggestions {
+        border-color: var(--ink);
+        background: var(--panel);
+        box-shadow: 5px 5px 0 rgba(24, 22, 19, .18), var(--shadow);
+      }
+
+      :root[data-theme="auto"] .suggestion {
+        border-color: var(--line);
+        color: var(--ink);
+      }
+
+      :root[data-theme="auto"] .suggestion:hover,
+      :root[data-theme="auto"] .suggestion.active {
+        background: #e7ecff;
       }
     }
 
@@ -1252,34 +1311,34 @@
       border: 0;
       border-radius: 10px;
       box-shadow: 0 28px 90px rgba(14, 21, 45, .34);
-      background: #07090d;
+      background: var(--panel);
     }
 
     .detail-head {
       padding: 16px 18px 12px;
-      border-bottom-color: #242833;
-      background: #0b0e14;
-      color: #eef2f7;
+      border-bottom-color: var(--line);
+      background: var(--panel);
+      color: var(--ink);
     }
 
-    .detail-title { color: #eef2f7; }
-    .detail-sub { color: #8c94a3; }
+    .detail-title { color: var(--ink); }
+    .detail-sub { color: var(--muted); }
 
     .tabs {
-      border-bottom-color: #242833;
-      background: #080b10;
+      border-bottom-color: var(--line);
+      background: var(--panel);
     }
 
     .tab {
-      border-color: transparent;
-      background: transparent;
-      color: #9aa3b2;
+      border-color: var(--line);
+      background: #f8faff;
+      color: var(--muted);
     }
 
     .tab.active {
-      border-color: #384151;
-      background: #1a202b;
-      color: #fff;
+      border-color: var(--blue);
+      background: #eef2ff;
+      color: var(--blue);
     }
 
     .detail-close {
@@ -1290,24 +1349,24 @@
 
     .detail-canvas-wrap {
       padding: 0;
-      background: #020403;
+      background: var(--panel);
     }
 
     .detail-canvas {
       min-height: 430px;
       border: 0;
       border-radius: 0;
-      background: #020403;
+      background: var(--panel);
       cursor: crosshair;
     }
 
     .detail-meta {
-      border-top-color: #242833;
-      background: #080b10;
+      border-top-color: var(--line);
+      background: var(--panel);
     }
 
-    .detail-meta .label { color: #727b8d; }
-    .detail-meta .value { color: #dce2ec; }
+    .detail-meta .label { color: var(--muted); }
+    .detail-meta .value { color: var(--ink); }
 
     @media (max-width: 780px) {
       header {
@@ -1396,6 +1455,12 @@
           <input id="symbolInput" class="field symbol-input" autocomplete="off" placeholder="搜名称/代码/拼音，如 中科仪 / 920186 / zky" />
           <div id="suggestions" class="suggestions"></div>
         </div>
+        <select id="searchType" class="field search-type" title="Search scope">
+          <option value="all">全部</option>
+          <option value="stock">股票</option>
+          <option value="fund">基金</option>
+          <option value="index">指数</option>
+        </select>
         <button id="addBtn" class="btn" title="添加">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
         </button>
@@ -1486,6 +1551,16 @@
       </div>
       <div class="setting-row">
         <div>
+          总览分时右侧
+          <small>收盘更像东方财富；最新更紧凑</small>
+        </div>
+        <select id="settingsRightEdge" class="field">
+          <option value="close">收盘时间</option>
+          <option value="latest">最新时间</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div>
           云端同步
           <small>默认同一用户，预留账号接口</small>
         </div>
@@ -1510,6 +1585,7 @@
     const THEME_KEY = "lite-stock-board-theme-v1";
     const SYNC_KEY = "lite-stock-board-sync-id-v1";
     const DISPLAY_KEY = "lite-stock-board-display-v1";
+    const RIGHT_EDGE_KEY = "lite-stock-board-right-edge-v1";
     const API_QUOTE = "https://push2.eastmoney.com/api/qt/ulist.np/get";
     const API_TREND = "https://push2his.eastmoney.com/api/qt/stock/trends2/get";
     const API_KLINE = "https://push2his.eastmoney.com/api/qt/stock/kline/get";
@@ -1517,7 +1593,8 @@
     const API_SYNC = location.protocol.startsWith("http") ? "/api/sync" : "https://tiny-stocks.pages.dev/api/sync";
     const API_SEARCH = "https://searchapi.eastmoney.com/api/suggest/get";
     const SEARCH_TOKEN = "D43BF722C8E33BDC906FB84D85E326E8";
-    const DEFAULT_SYMBOLS = ["1.000001", "0.399001", "0.399006", "1.600519", "0.000001"];
+    const DEFAULT_SYMBOLS = ["1.000001", "0.399001", "0.399006", "1.000300", "1.000016", "1.000688", "1.600519", "0.920186"];
+    const INDEX_SYMBOLS = ["1.000001", "0.399001", "0.399006", "1.000300", "1.000016", "1.000688", "1.000905", "0.399905", "0.399006", "0.899050", "100.NDX", "100.DJIA", "100.SPX"];
     const DEFAULT_SYNC_ID = "default-user";
 
     const els = {
@@ -1526,6 +1603,7 @@
       ticker: document.querySelector("#ticker"),
       clock: document.querySelector("#clock"),
       input: document.querySelector("#symbolInput"),
+      searchType: document.querySelector("#searchType"),
       suggestions: document.querySelector("#suggestions"),
       add: document.querySelector("#addBtn"),
       refresh: document.querySelector("#refreshBtn"),
@@ -1551,6 +1629,7 @@
       settingsClose: document.querySelector("#settingsClose"),
       settingsInterval: document.querySelector("#settingsIntervalInput"),
       settingsThemeRange: document.querySelector("#settingsThemeRange"),
+      settingsRightEdge: document.querySelector("#settingsRightEdge"),
       settingsSync: document.querySelector("#settingsSyncBtn"),
       settingsRefresh: document.querySelector("#settingsRefreshBtn"),
       settingsReset: document.querySelector("#settingsResetBtn"),
@@ -1620,12 +1699,27 @@
       return seconds;
     }
 
+    function loadRightEdge() {
+      return localStorage.getItem(RIGHT_EDGE_KEY) === "latest" ? "latest" : "close";
+    }
+
+    function saveRightEdge(value) {
+      const next = value === "latest" ? "latest" : "close";
+      localStorage.setItem(RIGHT_EDGE_KEY, next);
+      if (els.settingsRightEdge) els.settingsRightEdge.value = next;
+      renderCharts();
+      queueCloudSync();
+    }
+
     function normalizeSymbol(raw) {
       const text = String(raw || "").trim().toLowerCase().replace(/\s+/g, "");
       if (!text) return null;
       if (/^[01]\.\d{6}$/.test(text)) return text;
       if (/^sh\d{6}$/.test(text)) return `1.${text.slice(2)}`;
       if (/^sz\d{6}$/.test(text)) return `0.${text.slice(2)}`;
+      if (["ndx", "nasdaq", "nasdaq100", "纳指", "纳斯达克"].includes(text)) return "100.NDX";
+      if (["dji", "djia", "dow", "道指"].includes(text)) return "100.DJIA";
+      if (["spx", "sp500", "标普", "标普500"].includes(text)) return "100.SPX";
       if (/^\d{6}$/.test(text)) {
         if (text.startsWith("6") || text.startsWith("5")) return `1.${text}`;
         return `0.${text}`;
@@ -1635,6 +1729,7 @@
 
     function secidToDisplay(secid) {
       const [market, code] = secid.split(".");
+      if (market === "100") return `US ${code}`;
       const prefix = market === "1" ? "SH" : /^[89]\d{5}$/.test(code) ? "BJ" : "SZ";
       return `${prefix} ${code}`;
     }
@@ -1730,6 +1825,7 @@
       els.settingsInterval.value = loadRefreshSeconds();
       const current = localStorage.getItem(THEME_KEY) || "auto";
       els.settingsThemeRange.value = current === "light" ? "0" : current === "dark" ? "2" : "1";
+      els.settingsRightEdge.value = loadRightEdge();
       els.settingsModal.classList.add("open");
       els.settingsModal.setAttribute("aria-hidden", "false");
     }
@@ -1751,6 +1847,10 @@
       applyTheme(value === 0 ? "light" : value === 2 ? "dark" : "auto");
     }
 
+    function applyRightEdge() {
+      saveRightEdge(els.settingsRightEdge?.value);
+    }
+
     function confirmResetSymbols() {
       if (confirm("恢复默认自选并覆盖当前排序？")) resetSymbols();
     }
@@ -1761,6 +1861,7 @@
         refreshSeconds: Number(els.interval.value) || loadRefreshSeconds(),
         theme: localStorage.getItem(THEME_KEY) || "auto",
         displayMetrics,
+        rightEdge: loadRightEdge(),
         accountMode: "reserved-default",
         defaultUserId: DEFAULT_SYNC_ID,
         updatedAt: new Date().toISOString()
@@ -1812,6 +1913,7 @@
         displayMetrics = data.displayMetrics;
         saveDisplayMetrics();
       }
+      if (data.rightEdge) saveRightEdge(data.rightEdge);
       render();
       refreshAll();
       return true;
@@ -1829,7 +1931,7 @@
     }
 
     function isIndexSecid(secid) {
-      return ["1.000001", "0.399001", "0.399006", "1.000300", "1.000016", "0.399300"].includes(secid);
+      return INDEX_SYMBOLS.includes(secid) || /^[1]\.000\d{3}$/.test(secid) || /^[01]\.399\d{3}$/.test(secid) || /^100\./.test(secid);
     }
 
     async function fetchJson(url, params) {
@@ -1851,15 +1953,16 @@
     async function searchStocks(keyword) {
       const input = String(keyword || "").trim();
       if (!input) return [];
+      const scope = els.searchType?.value || "all";
       const data = await fetchJsonp(API_SEARCH, {
         input,
-        type: "14",
-        count: "30",
+        type: searchTypeParam(scope),
+        count: "50",
         token: SEARCH_TOKEN
       });
       const q = normalizeQuery(input);
       return (data?.QuotationCodeTable?.Data || [])
-        .filter(item => item?.QuoteID && /^\d+\.\d{6}$/.test(item.QuoteID))
+        .filter(item => item?.QuoteID && /^[0-9A-Z]+\.[A-Za-z0-9_.-]+$/.test(item.QuoteID))
         .map(item => ({
           secid: item.QuoteID,
           code: item.Code,
@@ -1867,11 +1970,26 @@
           pinyin: item.PinYin,
           market: item.SecurityTypeName || item.MarketType || "",
           classify: item.Classify || "",
+          scope: classifySearchItem(item),
           score: matchScore(q, item)
         }))
+        .filter(item => scope === "all" || item.scope === scope)
         .filter(item => item.score < 900)
         .sort((a, b) => a.score - b.score || a.code.localeCompare(b.code))
         .slice(0, 20);
+    }
+
+    function searchTypeParam(scope) {
+      return "14,8,5";
+    }
+
+    function classifySearchItem(item) {
+      const text = `${item.SecurityTypeName || ""} ${item.MarketType || ""} ${item.Classify || ""} ${item.TypeName || ""}`.toLowerCase();
+      const quote = String(item.QuoteID || "");
+      const code = String(item.Code || "");
+      if (text.includes("基金") || text.includes("fund")) return "fund";
+      if (text.includes("指数") || text.includes("index") || INDEX_SYMBOLS.includes(quote) || /^100\./.test(quote) || /^(000|399|899)/.test(code)) return "index";
+      return "stock";
     }
 
     function normalizeQuery(value) {
@@ -2057,8 +2175,15 @@
     function parseTrendData(data) {
       return (data?.data?.trends || [])
         .map(row => {
-          const [time, price] = String(row).split(",");
-          return { time, price: Number(price) };
+          const parts = String(row).split(",");
+          const [time, open, price, high, low, volume, amount, avg] = parts;
+          return {
+            time,
+            price: Number(price ?? open),
+            avg: Number(avg),
+            volume: Number(volume),
+            amount: Number(amount)
+          };
         })
         .filter(p => Number.isFinite(p.price));
     }
@@ -2182,10 +2307,10 @@
         els.ticker.textContent = "未获取到行情数据，请检查代码。";
         return;
       }
-      els.ticker.textContent = list.map(q => {
+      els.ticker.innerHTML = list.map(q => {
         const sign = Number(q.f3) > 0 ? "+" : "";
-        return `${q.f14} ${formatNum(q.f2)} ${sign}${formatNum(q.f3)}%`;
-      }).join("    ·    ");
+        return `<span class="ticker-item ${quoteClass(q)}">${escapeHtml(q.f14)} ${formatNum(q.f2)} ${sign}${formatNum(q.f3)}%</span>`;
+      }).join('<span class="ticker-sep">·</span>');
     }
 
     function render() {
@@ -2243,6 +2368,53 @@
       });
     }
 
+    function minuteOfDay(time) {
+      const text = String(time || "");
+      const match = text.match(/(\d{2}):(\d{2})/);
+      if (!match) return 0;
+      return Number(match[1]) * 60 + Number(match[2]);
+    }
+
+    function tradingMinuteIndex(time) {
+      const minute = minuteOfDay(time);
+      const morningStart = 9 * 60 + 30;
+      const morningEnd = 11 * 60 + 30;
+      const afternoonStart = 13 * 60;
+      const close = 15 * 60;
+      if (minute <= morningStart) return 0;
+      if (minute <= morningEnd) return minute - morningStart;
+      if (minute < afternoonStart) return morningEnd - morningStart;
+      return Math.min(240, 120 + minute - afternoonStart);
+    }
+
+    function uniqueTradingDates(points) {
+      return [...new Set((points || []).map(p => String(p.time || "").slice(0, 10)).filter(Boolean))];
+    }
+
+    function lineDomain(points, days = 1, mode = "close") {
+      const dates = uniqueTradingDates(points);
+      if (days > 1 || dates.length > 1) {
+        const count = Math.max(days || 1, dates.length || 1);
+        return { mode: "multi", dates, total: count * 240 };
+      }
+      const latest = points.length ? tradingMinuteIndex(points[points.length - 1].time) : 240;
+      return { mode: "single", dates, total: mode === "latest" ? Math.max(1, latest) : 240, alignLatest: mode === "latest", latest };
+    }
+
+    function xForTrendPoint(point, index, points, domain, pad, width) {
+      const plotW = width - pad.l - pad.r;
+      let xIndex;
+      if (domain.mode === "multi") {
+        const date = String(point.time || "").slice(0, 10);
+        const day = Math.max(0, domain.dates.indexOf(date));
+        xIndex = day * 240 + tradingMinuteIndex(point.time);
+      } else {
+        xIndex = tradingMinuteIndex(point.time);
+      }
+      if (domain.alignLatest && index === points.length - 1) xIndex = domain.total;
+      return pad.l + Math.max(0, Math.min(domain.total, xIndex)) / Math.max(1, domain.total) * plotW;
+    }
+
     function drawChart(canvas, points, quote) {
       const rect = canvas.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
@@ -2258,7 +2430,7 @@
       const color = Number(quote?.f3) >= 0 ? "#c83232" : "#12805c";
       const values = points.map(p => p.price);
 
-      if (values.length < 2) {
+      if (!values.length) {
         ctx.fillStyle = "#70695d";
         ctx.font = "12px Microsoft YaHei UI, sans-serif";
         ctx.fillText("暂无分时", pad, h / 2 + 4);
@@ -2269,17 +2441,19 @@
       const max = Math.max(...values);
       const spread = Math.max(max - min, Math.abs(max) * .002, 0.01);
       const yFor = v => pad + (max - v) / spread * (h - pad * 2);
-      const xFor = i => pad + i / (values.length - 1) * (w - pad * 2);
+      const domain = lineDomain(points, 1, loadRightEdge());
+      const xFor = (p, i) => xForTrendPoint(p, i, points, domain, { l: pad, r: pad }, w);
 
       ctx.beginPath();
-      values.forEach((v, i) => {
-        const x = xFor(i);
+      points.forEach((p, i) => {
+        const x = xFor(p, i);
+        const v = p.price;
         const y = yFor(v);
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       });
-      ctx.lineTo(xFor(values.length - 1), h - pad);
-      ctx.lineTo(xFor(0), h - pad);
+      ctx.lineTo(xFor(points[points.length - 1], points.length - 1), h - pad);
+      ctx.lineTo(xFor(points[0], 0), h - pad);
       ctx.closePath();
       const fill = ctx.createLinearGradient(0, pad, 0, h);
       fill.addColorStop(0, color + "38");
@@ -2288,8 +2462,9 @@
       ctx.fill();
 
       ctx.beginPath();
-      values.forEach((v, i) => {
-        const x = xFor(i);
+      points.forEach((p, i) => {
+        const x = xFor(p, i);
+        const v = p.price;
         const y = yFor(v);
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
@@ -2297,12 +2472,18 @@
       ctx.strokeStyle = color;
       ctx.lineWidth = 2;
       ctx.stroke();
+      if (points.length === 1) {
+        ctx.beginPath();
+        ctx.arc(xFor(points[0], 0), yFor(points[0].price), 2.8, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+      }
 
       ctx.fillStyle = "#70695d";
       ctx.font = "11px Microsoft YaHei UI, sans-serif";
-      ctx.fillText(points[0].time.slice(11, 16), pad, h - 7);
+      ctx.fillText("09:30", pad, h - 7);
       ctx.textAlign = "right";
-      ctx.fillText(points[points.length - 1].time.slice(11, 16), w - pad, h - 7);
+      ctx.fillText(loadRightEdge() === "latest" ? points[points.length - 1].time.slice(11, 16) : "15:00", w - pad, h - 7);
     }
 
     function detailCacheKey(secid, view) {
@@ -2361,14 +2542,24 @@
 
     function updateDetailHeader() {
       const quote = quoteMap.get(detailState.secid);
+      const cls = quoteClass(quote);
+      const sign = Number(quote?.f3) > 0 ? "+" : "";
+      const latestPoint = trendMap.get(detailState.secid)?.at?.(-1);
       els.detailTitle.textContent = `${quote?.f14 || "等待数据"} · ${secidToDisplay(detailState.secid)}`;
-      els.detailSub.textContent = `现价 ${formatNum(quote?.f2)} · 涨跌 ${formatNum(quote?.f4)} · ${formatNum(quote?.f3)}%`;
+      els.detailSub.innerHTML = `
+        <div class="detail-quote-strip ${cls}">
+          <span class="detail-quote-price">${formatNum(quote?.f2)}</span>
+          <span class="detail-quote-change">${sign}${formatNum(quote?.f4)} ${sign}${formatNum(quote?.f3)}%</span>
+          <span class="detail-quote-time">${latestPoint?.time || new Date().toLocaleString("zh-CN", { hour12: false })}</span>
+        </div>
+      `;
       els.detailMeta.innerHTML = `
         <div class="fact"><div class="label">今开</div><div class="value">${formatNum(quote?.f17)}</div></div>
         <div class="fact"><div class="label">最高</div><div class="value">${formatNum(quote?.f15)}</div></div>
         <div class="fact"><div class="label">最低</div><div class="value">${formatNum(quote?.f16)}</div></div>
         <div class="fact"><div class="label">昨收</div><div class="value">${formatNum(quote?.f18)}</div></div>
         <div class="fact"><div class="label">成交额</div><div class="value">${formatAmount(quote?.f6)}</div></div>
+        <div class="fact"><div class="label">成交量</div><div class="value">${formatAmount(quote?.f5)}</div></div>
         <div class="fact"><div class="label">视图</div><div class="value">${activeViewLabel()}</div></div>
       `;
     }
@@ -2479,36 +2670,49 @@
 
     function drawLargeLine(canvas, points, quote, days = 1) {
       const { ctx, w, h } = setupCanvas(canvas);
-      const pad = { l: 18, r: 74, t: 24, b: 38 };
+      const pad = { l: 52, r: 72, t: 30, b: 126 };
       const plotH = h - pad.t - pad.b;
       const values = points.map(p => p.price);
       if (!values.length) return drawLoading(canvas, "暂无分时数据");
       const min = Math.min(...values);
       const max = Math.max(...values);
-      const spread = Math.max(max - min, Math.abs(max) * .002, 0.01);
-      const yFor = v => pad.t + (max - v) / spread * plotH;
-      const xFor = i => values.length === 1 ? pad.l + (w - pad.l - pad.r) / 2 : pad.l + i / (values.length - 1) * (w - pad.l - pad.r);
+      const prevClose = Number(quote?.f18);
+      const center = Number.isFinite(prevClose) && prevClose > 0 ? prevClose : (min + max) / 2;
+      const half = Math.max(Math.abs(max - center), Math.abs(center - min), Math.abs(center) * .008, 0.01);
+      const yMin = center - half;
+      const yMax = center + half;
+      const yFor = v => pad.t + (yMax - v) / (yMax - yMin) * plotH;
+      const domain = lineDomain(points, days, "close");
+      const xFor = (p, i) => xForTrendPoint(p, i, points, domain, pad, w);
       const color = Number(quote?.f3) >= 0 ? "#f05a72" : "#39b86f";
 
       paintChartBackground(ctx, w, h);
-      drawGrid(ctx, w, h, pad, min, max, points, "line");
+      drawGrid(ctx, w, h, pad, yMin, yMax, points, "line", domain, quote);
       drawFiveDaySeparators(ctx, w, h, pad, points, days);
 
       ctx.beginPath();
-      points.forEach((p, i) => i ? ctx.lineTo(xFor(i), yFor(p.price)) : ctx.moveTo(xFor(i), yFor(p.price)));
+      points.forEach((p, i) => i ? ctx.lineTo(xFor(p, i), yFor(p.price)) : ctx.moveTo(xFor(p, i), yFor(p.price)));
       ctx.strokeStyle = color;
       ctx.lineWidth = 2;
       ctx.stroke();
+      const avgPoints = points.filter(p => Number.isFinite(p.avg) && p.avg > 0);
+      if (avgPoints.length > 1) {
+        ctx.beginPath();
+        avgPoints.forEach((p, i) => i ? ctx.lineTo(xFor(p, i), yFor(p.avg)) : ctx.moveTo(xFor(p, i), yFor(p.avg)));
+        ctx.strokeStyle = "#e0a942";
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+      }
       if (points.length === 1) {
         ctx.beginPath();
-        ctx.arc(xFor(0), yFor(points[0].price), 4, 0, Math.PI * 2);
+        ctx.arc(xFor(points[0], 0), yFor(points[0].price), 4, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.fill();
       }
 
       const current = chartState.hover != null ? points[chartState.hover] : points[points.length - 1];
       if (chartState.hover != null && current) drawLineCrosshair(ctx, w, h, pad, points, current, chartState.hover, yFor, xFor);
-      drawVolumeBars(ctx, w, h, pad, [], null);
+      drawTrendVolumeBars(ctx, w, h, pad, points, domain);
       updateReadoutForLine(current);
     }
 
@@ -2560,7 +2764,7 @@
       ctx.fillRect(w - 112, h * .52, 112, h * .48);
     }
 
-    function drawGrid(ctx, w, h, pad, min, max, data, type) {
+    function drawGrid(ctx, w, h, pad, min, max, data, type, domain = null, quote = null) {
       const theme = chartTheme();
       ctx.strokeStyle = theme.grid;
       ctx.lineWidth = 1;
@@ -2570,21 +2774,28 @@
       for (let i = 0; i <= 6; i++) {
         const y = pad.t + i / 6 * (h - pad.t - pad.b);
         const value = max - i / 6 * (max - min);
+        const pct = quote?.f18 ? (value - Number(quote.f18)) / Number(quote.f18) * 100 : null;
         ctx.beginPath();
         ctx.moveTo(pad.l, y);
         ctx.lineTo(w - pad.r, y);
         ctx.stroke();
-        ctx.fillText(formatNum(value), w - pad.r + 10, y + 4);
+        ctx.textAlign = "right";
+        ctx.fillStyle = value >= Number(quote?.f18 || value) ? "#f05a72" : "#39b86f";
+        ctx.fillText(formatNum(value), pad.l - 8, y + 4);
+        ctx.textAlign = "left";
+        if (pct != null) ctx.fillText(`${pct >= 0 ? "+" : ""}${formatNum(pct)}%`, w - pad.r + 10, y + 4);
       }
-      const ticks = Math.min(8, Math.max(3, Math.floor((w - pad.l - pad.r) / 130)));
+      const tickLabels = type === "line" ? lineTickLabels(domain) : null;
+      const ticks = tickLabels ? tickLabels.length - 1 : Math.min(8, Math.max(3, Math.floor((w - pad.l - pad.r) / 130)));
       for (let i = 0; i <= ticks; i++) {
-        const x = pad.l + i / ticks * (w - pad.l - pad.r);
+        const ratio = tickLabels ? tickLabels[i].ratio : i / ticks;
+        const x = pad.l + ratio * (w - pad.l - pad.r);
         ctx.beginPath();
         ctx.moveTo(x, pad.t);
         ctx.lineTo(x, h - pad.b);
         ctx.stroke();
         const index = Math.min(data.length - 1, Math.round(i / ticks * (data.length - 1)));
-        const label = type === "line" ? formatTimeTick(data[index]?.time) : data[index]?.date;
+        const label = tickLabels ? tickLabels[i].label : data[index]?.date;
         ctx.fillStyle = theme.muted;
         ctx.textAlign = i === ticks ? "right" : "left";
         ctx.fillText(label || "", i === ticks ? x - 4 : x + 4, h - 12);
@@ -2592,14 +2803,33 @@
       ctx.textAlign = "left";
     }
 
+    function lineTickLabels(domain) {
+      if (!domain || domain.mode !== "multi") {
+        return [
+          { label: "09:30", ratio: 0 },
+          { label: "10:30", ratio: 60 / 240 },
+          { label: "11:30/13:00", ratio: 120 / 240 },
+          { label: "14:00", ratio: 180 / 240 },
+          { label: "15:00", ratio: 1 }
+        ];
+      }
+      const count = Math.max(1, Math.round(domain.total / 240));
+      const labels = [];
+      for (let i = 0; i <= count; i++) {
+        const date = domain.dates[Math.min(i, domain.dates.length - 1)] || "";
+        labels.push({ label: i === count ? "15:00" : date.slice(5) || `${i + 1}日`, ratio: i / count });
+      }
+      return labels;
+    }
+
     function drawFiveDaySeparators(ctx, w, h, pad, points, days) {
       if (days < 2) return;
-      const plotW = w - pad.l - pad.r;
+      const domain = lineDomain(points, days, "close");
       let lastDate = points[0]?.time?.slice(0, 10);
       points.forEach((p, i) => {
         const date = p.time.slice(0, 10);
         if (i && date !== lastDate) {
-          const x = pad.l + i / (points.length - 1) * plotW;
+          const x = xForTrendPoint(p, i, points, domain, pad, w);
           ctx.strokeStyle = chartTheme().cross;
           ctx.setLineDash([4, 4]);
           ctx.beginPath();
@@ -2655,8 +2885,28 @@
       ctx.fillText("VOLUME", pad.l + 8, volTop + 18);
     }
 
+    function drawTrendVolumeBars(ctx, w, h, pad, points, domain) {
+      const theme = chartTheme();
+      const top = h - pad.b + 34;
+      const bottom = h - 34;
+      const plotW = w - pad.l - pad.r;
+      ctx.fillStyle = theme.volumeBg;
+      ctx.fillRect(pad.l, top, plotW, bottom - top);
+      const volumes = points.map(p => Number(p.volume) || 0);
+      const maxVol = Math.max(...volumes, 1);
+      points.forEach((p, i) => {
+        const x = xForTrendPoint(p, i, points, domain, pad, w);
+        const barH = (Number(p.volume) || 0) / maxVol * (bottom - top);
+        ctx.fillStyle = i && p.price >= points[i - 1].price ? "rgba(240,90,114,.55)" : "rgba(57,184,111,.55)";
+        ctx.fillRect(x - 1.5, bottom - barH, 3, barH);
+      });
+      ctx.fillStyle = theme.muted;
+      ctx.font = "12px Consolas, Microsoft YaHei UI, monospace";
+      ctx.fillText("VOLUME", pad.l + 8, top + 18);
+    }
+
     function drawLineCrosshair(ctx, w, h, pad, points, item, index, yFor, xFor) {
-      const x = xFor(index);
+      const x = xFor(item, index);
       const y = yFor(item.price);
       drawCrosshair(ctx, w, h, pad, x, y, formatNum(item.price));
       positionTooltip(x, y, [
@@ -2743,7 +2993,18 @@
       const plotW = rect.width - pad.l - pad.r;
       if (plotW <= 0) return 0;
       if (chartState.type === "line") {
-        return Math.max(0, Math.min(chartState.data.length - 1, Math.round((x - pad.l) / plotW * (chartState.data.length - 1))));
+        const domain = lineDomain(chartState.data, chartState.days || 1, "close");
+        let best = 0;
+        let bestDistance = Infinity;
+        chartState.data.forEach((point, index) => {
+          const px = xForTrendPoint(point, index, chartState.data, domain, { l: 52, r: 72 }, rect.width);
+          const distance = Math.abs(px - x);
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            best = index;
+          }
+        });
+        return best;
       }
       const data = visibleData();
       const step = plotW / Math.max(1, data.length);
@@ -2872,6 +3133,7 @@
     els.settingsInterval.addEventListener("change", applySettingsInterval);
     els.settingsInterval.addEventListener("blur", applySettingsInterval);
     els.settingsThemeRange.addEventListener("input", applySettingsTheme);
+    els.settingsRightEdge.addEventListener("change", applyRightEdge);
     els.settingsSync.addEventListener("click", setupCloudSync);
     els.settingsRefresh.addEventListener("click", refreshAll);
     els.settingsReset.addEventListener("click", confirmResetSymbols);
@@ -2905,6 +3167,7 @@
     els.interval.addEventListener("change", scheduleRefresh);
     els.interval.addEventListener("blur", scheduleRefresh);
     els.input.addEventListener("input", scheduleSearch);
+    els.searchType.addEventListener("change", scheduleSearch);
     els.input.addEventListener("blur", () => {
       setTimeout(() => renderSuggestions([]), 180);
     });

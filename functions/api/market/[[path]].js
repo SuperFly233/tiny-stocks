@@ -25,12 +25,12 @@ export async function onRequest({ request }) {
 
   const secid = String(url.searchParams.get("secid") || "");
   const days = Math.max(1, Math.min(5, Math.round(Number(url.searchParams.get("days")) || 1)));
-  if (!/^[01]\.\d{6}$/.test(secid)) return json({ error: "bad secid" }, { status: 400 });
+  if (!/^[0-9A-Z]+\.[A-Za-z0-9_.-]+$/.test(secid)) return json({ error: "bad secid" }, { status: 400 });
 
   const qs = new URLSearchParams({
     secid,
     fields1: "f1,f2,f3",
-    fields2: "f51,f53",
+    fields2: "f51,f52,f53,f54,f55,f56,f57,f58",
     iscr: "0",
     iscca: "0",
     ndays: String(days)
@@ -54,7 +54,7 @@ async function quote(url) {
   const secids = String(url.searchParams.get("secids") || "")
     .split(",")
     .map(item => item.trim())
-    .filter(item => /^[01]\.\d{6}$/.test(item))
+    .filter(item => /^[0-9A-Z]+\.[A-Za-z0-9_.-]+$/.test(item))
     .slice(0, 80);
   if (!secids.length) return json({ error: "bad secids" }, { status: 400 });
 
