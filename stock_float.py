@@ -1,4 +1,5 @@
 import argparse
+import ctypes
 import json
 import math
 import re
@@ -30,13 +31,18 @@ DEFAULT_CONFIG = {
     "geometry": "",
     "display_metrics": {},
     "size_mode": "normal",
+    "layout_mode": "list",
+    "focus_index": 0,
 }
 
 
 GEOMETRIES = {
+    "micro": "172x138",
     "tiny": "226x330",
     "normal": "308x520",
 }
+
+INDEX_SECIDS = {"1.000001", "0.399001", "0.399006", "1.000300", "1.000016", "0.399300"}
 
 
 def usable_geometry(value):
@@ -45,13 +51,21 @@ def usable_geometry(value):
         return ""
     width = int(match.group(1))
     height = int(match.group(2))
-    if width < 290 or height < 430:
+    if width < 160 or height < 120:
         return ""
     return value
 
 
 def size_mode(config):
-    return "tiny" if config.get("size_mode") == "tiny" else "normal"
+    return config.get("size_mode") if config.get("size_mode") in GEOMETRIES else "normal"
+
+
+def layout_mode(config):
+    return config.get("layout_mode") if config.get("layout_mode") in {"list", "row", "grid"} else "list"
+
+
+def is_index(secid):
+    return secid in INDEX_SECIDS
 
 
 def load_config():
@@ -128,6 +142,9 @@ def fetch_quotes(symbols):
     }
     try:
         payload = fetch_json(QUOTE_API, params, timeout=10, retries=2)
+        items = payload.get("data", {}).get("diff", []) or []
+        if not items:
+            payload = fetch_json(QUOTE_PROXY, {"secids": ",".join(symbols)}, timeout=14, retries=1)
     except Exception:
         payload = fetch_json(QUOTE_PROXY, {"secids": ",".join(symbols)}, timeout=14, retries=1)
     items = payload.get("data", {}).get("diff", []) or []
@@ -155,9 +172,12 @@ def fetch_trend(secid):
         "ndays": "1",
     }
     try:
-        return parse_trend(fetch_json(TREND_API, params, timeout=8, retries=1))
+        points = parse_trend(fetch_json(TREND_API, params, timeout=8, retries=1))
+        if points:
+            return points
     except Exception:
-        return parse_trend(fetch_json(TREND_PROXY, {"secid": secid, "days": "1"}, timeout=14, retries=1))
+        pass
+    return parse_trend(fetch_json(TREND_PROXY, {"secid": secid, "days": "1"}, timeout=14, retries=1))
 
 
 def fmt(value, digits=2):
@@ -228,7 +248,7 @@ def metric_color(metric, quote):
 
 class SparkLine(tk.Canvas):
     def __init__(self, master, mode="normal"):
-        height = 28 if mode == "tiny" else 48
+        height = 14 if mode == "micro" else 28 if mode == "tiny" else 48
         super().__init__(master, height=height, bg="#05070a", highlightthickness=0, bd=0)
         self.points = []
         self.line_color = "#39b86f"
@@ -258,10 +278,41 @@ class SparkLine(tk.Canvas):
         self.create_line(*coords, fill=self.line_color, width=1.4, smooth=True)
 
 
+class IndexChip(tk.Frame):
+    def __init__(self, master, secid, mode="normal"):
+        self.mode = mode
+        pad_x = 3 if mode == "micro" else 5
+        super().__init__(master, bg="#111721", padx=pad_x, pady=1)
+        self.secid = secid
+        small = mode == "micro"
+        self.name = tk.Label(
+            self,
+            text=display_code(secid),
+            fg="#9aa4b5",
+            bg="#111721",
+            font=("Microsoft YaHei UI", 6 if small else 7, "bold"),
+        )
+        self.name.pack(side="left")
+        self.value = tk.Label(
+            self,
+            text="--",
+            fg="#f2f5fb",
+            bg="#111721",
+            font=("Consolas", 6 if small else 8, "bold"),
+        )
+        self.value.pack(side="left", padx=(4, 0))
+
+    def update(self, quote):
+        name = quote.get("f14") or display_code(self.secid)
+        self.name.config(text=name[:3] if self.mode == "micro" else name[:5])
+        self.value.config(text=metric_value("pct", quote), fg=color_for_pct(quote.get("f3")))
+
+
 class StockRow(tk.Frame):
     def __init__(self, master, secid, remove_callback, metric_callback, drag_callback, mode="normal"):
         self.mode = mode
-        super().__init__(master, bg="#0b0f16", padx=5 if mode == "tiny" else 8, pady=4 if mode == "tiny" else 7)
+        micro = mode == "micro"
+        super().__init__(master, bg="#0b0f16", padx=4 if micro else 5 if mode == "tiny" else 8, pady=3 if micro else 4 if mode == "tiny" else 7)
         self.secid = secid
         self.remove_callback = remove_callback
         self.metric_callback = metric_callback
@@ -276,7 +327,7 @@ class StockRow(tk.Frame):
             text=display_code(secid),
             fg="#f2f5fb",
             bg="#0b0f16",
-            font=("Microsoft YaHei UI", 7 if mode == "tiny" else 8, "bold"),
+            font=("Microsoft YaHei UI", 6 if micro else 7 if mode == "tiny" else 8, "bold"),
             anchor="w",
         )
         self.name.pack(side="left", fill="x", expand=True)
@@ -285,19 +336,19 @@ class StockRow(tk.Frame):
             text="--",
             fg="#657084",
             bg="#0b0f16",
-            font=("Consolas", 7 if mode == "tiny" else 8),
+            font=("Consolas", 6 if micro else 7 if mode == "tiny" else 8),
             anchor="e",
         )
         self.code.pack(side="right")
 
         self.mid = tk.Frame(self, bg="#0b0f16")
-        self.mid.pack(fill="x", pady=(3, 3))
+        self.mid.pack(fill="x", pady=(1 if micro else 3, 1 if micro else 3))
         self.main_value = tk.Label(
             self.mid,
             text="--",
             fg="#f2f5fb",
             bg="#0b0f16",
-            font=("Consolas", 15 if mode == "tiny" else 19, "bold"),
+            font=("Consolas", 13 if micro else 15 if mode == "tiny" else 19, "bold"),
             anchor="w",
         )
         self.main_value.pack(side="left", fill="x", expand=True)
@@ -311,7 +362,7 @@ class StockRow(tk.Frame):
                 text="--",
                 fg="#798292",
                 bg="#0b0f16",
-                font=("Consolas", 7 if mode == "tiny" else 8, "bold"),
+                font=("Consolas", 6 if micro else 7 if mode == "tiny" else 8, "bold"),
                 anchor="e",
                 cursor="hand2",
             )
@@ -319,7 +370,10 @@ class StockRow(tk.Frame):
             self.side_labels[metric] = label
 
         self.spark = SparkLine(self, mode=mode)
-        self.spark.pack(fill="x")
+        if micro:
+            self.spark.pack_forget()
+        else:
+            self.spark.pack(fill="x")
 
         self.bind_recursive("<Button-3>", self.menu)
         self.bind_recursive("<ButtonPress-1>", lambda event: self.drag_callback("start", self.secid, event))
@@ -346,8 +400,14 @@ class StockRow(tk.Frame):
         quote = self.quote
         color = metric_color(self.main_metric, quote)
         self.main_value.config(text=metric_value(self.main_metric, quote), fg=color)
+        visible = [metric for metric in METRICS if metric != self.main_metric]
+        if self.mode == "micro":
+            visible = visible[:1]
         for metric, label in self.side_labels.items():
             if metric == self.main_metric:
+                label.pack_forget()
+                continue
+            if metric not in visible:
                 label.pack_forget()
                 continue
             label.config(
@@ -361,7 +421,8 @@ class StockRow(tk.Frame):
         self.quote = quote
         self.main_metric = main_metric if main_metric in METRICS else "price"
         color = color_for_pct(quote.get("f3"))
-        self.name.config(text=(quote.get("f14") or display_code(self.secid))[:12])
+        limit = 5 if self.mode == "micro" else 12
+        self.name.config(text=(quote.get("f14") or display_code(self.secid))[:limit])
         self.code.config(text=display_code(self.secid))
         self.paint_metrics()
         self.spark.set_data(trend, color)
@@ -374,8 +435,10 @@ class TinyStockWindow:
         self.quotes = {}
         self.trends = {}
         self.rows = {}
+        self.index_chips = {}
         self.display_metrics = dict(self.config.get("display_metrics") or {})
         self.mode = size_mode(self.config)
+        self.layout = layout_mode(self.config)
         self.running = True
         self.next_quote_at = 0
         self.next_trend_at = 0
@@ -388,7 +451,7 @@ class TinyStockWindow:
         self.root.attributes("-topmost", bool(self.config.get("always_on_top", True)))
         self.root.attributes("-alpha", float(self.config.get("opacity", 0.9)))
         self.root.resizable(True, True)
-        self.root.minsize(190 if self.mode == "tiny" else 280, 220 if self.mode == "tiny" else 360)
+        self.root.minsize(162 if self.mode == "micro" else 190 if self.mode == "tiny" else 280, 118 if self.mode == "micro" else 220 if self.mode == "tiny" else 360)
         self.root.protocol("WM_DELETE_WINDOW", self.close)
 
         geometry = usable_geometry(self.config.get("geometry"))
@@ -408,7 +471,7 @@ class TinyStockWindow:
         self.tick()
 
     def build(self):
-        self.header = tk.Frame(self.root, bg="#05070a", padx=8, pady=6)
+        self.header = tk.Frame(self.root, bg="#05070a", padx=6 if self.mode == "micro" else 8, pady=3 if self.mode == "micro" else 6)
         self.header.pack(fill="x")
 
         self.title = tk.Label(
@@ -416,7 +479,7 @@ class TinyStockWindow:
             text="STOCKS",
             fg="#f2f5fb",
             bg="#05070a",
-            font=("Consolas", 9, "bold"),
+            font=("Consolas", 8 if self.mode == "micro" else 9, "bold"),
         )
         self.title.pack(side="left")
         self.status = tk.Label(
@@ -424,7 +487,7 @@ class TinyStockWindow:
             text="boot",
             fg="#798292",
             bg="#05070a",
-            font=("Consolas", 8),
+            font=("Consolas", 7 if self.mode == "micro" else 8),
         )
         self.status.pack(side="left", padx=(8, 0))
 
@@ -445,10 +508,14 @@ class TinyStockWindow:
             )
             btn.pack(side="right", padx=(4, 0))
 
-        self.body = tk.Frame(self.root, bg="#05070a", padx=6, pady=2)
+        self.index_bar = tk.Frame(self.root, bg="#05070a", padx=4, pady=0)
+        self.index_bar.pack(fill="x")
+
+        self.body = tk.Frame(self.root, bg="#05070a", padx=4 if self.mode == "micro" else 6, pady=2)
         self.body.pack(fill="both", expand=True)
 
         self.root.bind("<Button-3>", self.menu)
+        self.index_bar.bind("<Button-3>", self.menu)
         self.body.bind("<Button-3>", self.menu)
 
     def menu(self, event):
@@ -460,8 +527,13 @@ class TinyStockWindow:
         menu.add_command(label="Topmost on/off", command=self.toggle_topmost)
         menu.add_command(label="Opacity 100%", command=lambda: self.set_opacity(1.0))
         menu.add_command(label="Opacity 90%", command=lambda: self.set_opacity(0.9))
+        menu.add_command(label="Micro mode", command=lambda: self.set_size_mode("micro"))
         menu.add_command(label="Tiny mode", command=lambda: self.set_size_mode("tiny"))
         menu.add_command(label="Normal mode", command=lambda: self.set_size_mode("normal"))
+        menu.add_separator()
+        menu.add_command(label="Layout: list", command=lambda: self.set_layout_mode("list"))
+        menu.add_command(label="Layout: row", command=lambda: self.set_layout_mode("row"))
+        menu.add_command(label="Layout: grid", command=lambda: self.set_layout_mode("grid"))
         menu.add_command(label="Reset symbols", command=self.reset_symbols)
         menu.tk_popup(event.x_root, event.y_root)
 
@@ -469,9 +541,26 @@ class TinyStockWindow:
         panel = tk.Toplevel(self.root)
         panel.title("Tiny Stocks Settings")
         panel.configure(bg="#0b0f16")
-        panel.geometry(f"260x150+{self.root.winfo_x()+24}+{self.root.winfo_y()+48}")
+        panel.geometry(f"286x270+{self.root.winfo_x()+24}+{self.root.winfo_y()+48}")
         panel.attributes("-topmost", True)
-        tk.Label(panel, text="Opacity", fg="#f2f5fb", bg="#0b0f16", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=12, pady=(10, 0))
+        tk.Label(panel, text="Refresh seconds", fg="#f2f5fb", bg="#0b0f16", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=12, pady=(10, 0))
+        refresh_value = tk.IntVar(value=int(self.config.get("refresh_seconds", 5)))
+        refresh = tk.Scale(
+            panel,
+            from_=1,
+            to=60,
+            resolution=1,
+            orient="horizontal",
+            variable=refresh_value,
+            command=lambda v: self.set_refresh_seconds(int(float(v))),
+            bg="#0b0f16",
+            fg="#f2f5fb",
+            troughcolor="#1a2230",
+            highlightthickness=0,
+        )
+        refresh.pack(fill="x", padx=12)
+
+        tk.Label(panel, text="Opacity", fg="#f2f5fb", bg="#0b0f16", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=12, pady=(4, 0))
         value = tk.DoubleVar(value=float(self.root.attributes("-alpha")))
         slider = tk.Scale(
             panel,
@@ -491,19 +580,42 @@ class TinyStockWindow:
         tk.Label(panel, text="Size mode", fg="#f2f5fb", bg="#0b0f16", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=12, pady=(6, 0))
         row = tk.Frame(panel, bg="#0b0f16")
         row.pack(fill="x", padx=12, pady=6)
-        tk.Button(row, text="tiny", command=lambda: self.set_size_mode("tiny"), bg="#121823", fg="#e8edf6", relief="flat").pack(side="left", fill="x", expand=True, padx=(0, 6))
-        tk.Button(row, text="normal", command=lambda: self.set_size_mode("normal"), bg="#121823", fg="#e8edf6", relief="flat").pack(side="left", fill="x", expand=True)
+        for label, mode in [("micro", "micro"), ("tiny", "tiny"), ("normal", "normal")]:
+            tk.Button(row, text=label, command=lambda m=mode: self.set_size_mode(m), bg="#121823", fg="#e8edf6", relief="flat").pack(side="left", fill="x", expand=True, padx=(0, 6))
+
+        tk.Label(panel, text="Layout", fg="#f2f5fb", bg="#0b0f16", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=12, pady=(4, 0))
+        layout_row = tk.Frame(panel, bg="#0b0f16")
+        layout_row.pack(fill="x", padx=12, pady=6)
+        for label, mode in [("list", "list"), ("row", "row"), ("grid", "grid")]:
+            tk.Button(layout_row, text=label, command=lambda m=mode: self.set_layout_mode(m), bg="#121823", fg="#e8edf6", relief="flat").pack(side="left", fill="x", expand=True, padx=(0, 6))
 
     def set_size_mode(self, mode):
-        self.mode = "tiny" if mode == "tiny" else "normal"
+        self.mode = mode if mode in GEOMETRIES else "normal"
         self.config["size_mode"] = self.mode
         self.config["geometry"] = ""
         save_config(self.config)
         geometry_size = GEOMETRIES[self.mode]
-        self.root.minsize(190 if self.mode == "tiny" else 280, 220 if self.mode == "tiny" else 360)
+        self.root.minsize(162 if self.mode == "micro" else 190 if self.mode == "tiny" else 280, 118 if self.mode == "micro" else 220 if self.mode == "tiny" else 360)
         self.root.geometry(f"{geometry_size}+{self.root.winfo_x()}+{self.root.winfo_y()}")
+        self.header.destroy()
+        self.index_bar.destroy()
+        self.body.destroy()
+        self.build()
         self.render_rows()
         self.apply_data(self.quotes, self.trends, None)
+
+    def set_layout_mode(self, mode):
+        self.layout = mode if mode in {"list", "row", "grid"} else "list"
+        self.config["layout_mode"] = self.layout
+        save_config(self.config)
+        self.render_rows()
+        self.apply_data(self.quotes, self.trends, None)
+
+    def set_refresh_seconds(self, seconds):
+        seconds = max(1, min(60, int(seconds or 5)))
+        self.config["refresh_seconds"] = seconds
+        self.next_quote_at = 0
+        save_config(self.config)
 
     def set_row_metric(self, secid, metric):
         if metric not in METRICS:
@@ -547,13 +659,36 @@ class TinyStockWindow:
         self.apply_data(self.quotes, self.trends, None)
 
     def render_rows(self):
+        for child in self.index_bar.winfo_children():
+            child.destroy()
         for child in self.body.winfo_children():
             child.destroy()
         self.rows.clear()
-        for secid in self.symbols:
+        self.index_chips.clear()
+
+        index_symbols = [secid for secid in self.symbols if is_index(secid)]
+        visible_indexes = index_symbols[:3 if self.mode == "micro" else 6]
+        for secid in visible_indexes:
+            chip = IndexChip(self.index_bar, secid, self.mode)
+            chip.pack(side="left", fill="x", expand=True, padx=(0, 3), pady=(0, 2))
+            self.index_chips[secid] = chip
+
+        stock_symbols = [secid for secid in self.symbols if not is_index(secid)]
+        if self.mode == "micro":
+            focus = max(0, min(int(self.config.get("focus_index", 0) or 0), max(0, len(stock_symbols) - 1)))
+            stock_symbols = stock_symbols[focus:focus + 1]
+
+        for index, secid in enumerate(stock_symbols):
             row = StockRow(self.body, secid, self.remove_symbol, self.set_row_metric, self.row_drag_event, self.mode)
             row.set_main_metric(self.display_metrics.get(secid, "price"))
-            row.pack(fill="x", pady=(0, 6))
+            if self.layout == "row":
+                row.pack(side="left", fill="both", expand=True, padx=(0, 5), pady=(0, 5))
+            elif self.layout == "grid":
+                columns = 2 if self.root.winfo_width() < 560 else 3
+                row.grid(row=index // columns, column=index % columns, sticky="nsew", padx=3, pady=3)
+                self.body.grid_columnconfigure(index % columns, weight=1)
+            else:
+                row.pack(fill="x", pady=(0, 6))
             self.rows[secid] = row
 
     def tick(self):
@@ -600,6 +735,10 @@ class TinyStockWindow:
             self.quotes = quotes
         self.trends = trends
         updated = 0
+        for secid, chip in self.index_chips.items():
+            quote = self.quotes.get(secid)
+            if quote:
+                chip.update(quote)
         for secid, row in self.rows.items():
             quote = self.quotes.get(secid)
             if quote:
@@ -648,6 +787,7 @@ class TinyStockWindow:
         self.config["symbols"] = self.symbols
         self.config["display_metrics"] = self.display_metrics
         self.config["size_mode"] = self.mode
+        self.config["layout_mode"] = self.layout
         save_config(self.config)
         self.root.destroy()
 
@@ -666,13 +806,26 @@ def check_data(symbols):
     trend_symbol = symbols[0]
     print(f"checking trend for {trend_symbol}...")
     trend = fetch_trend(trend_symbol)
-    if len(trend) < 2:
-        raise RuntimeError("trend API returned too few points")
+    if len(trend) < 1:
+        raise RuntimeError("trend API returned no points")
     print(f"trend_points={len(trend)} first={trend[0]} last={trend[-1]}")
     print("DATA_OK")
 
 
+def enable_dpi_awareness():
+    if sys.platform != "win32":
+        return
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    except Exception:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
+
+
 def main():
+    enable_dpi_awareness()
     parser = argparse.ArgumentParser()
     parser.add_argument("--check-data", action="store_true", help="verify quote and trend data, then exit")
     parser.add_argument("symbols", nargs="*", help="optional secids/codes for --check-data")

@@ -4,6 +4,9 @@ const json = (body, init = {}) =>
     headers: {
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store",
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET,POST,PUT,OPTIONS",
+      "access-control-allow-headers": "content-type",
       ...(init.headers || {})
     }
   });
@@ -32,11 +35,15 @@ const cleanPayload = value => {
     refreshSeconds,
     theme,
     displayMetrics,
+    accountMode: value.accountMode === "reserved-default" ? "reserved-default" : "reserved-default",
+    defaultUserId: "default-user",
     updatedAt: new Date().toISOString()
   };
 };
 
 export async function onRequest({ request, env }) {
+  if (request.method === "OPTIONS") return json({ ok: true });
+
   const url = new URL(request.url);
   const id = cleanId(url.searchParams.get("id"));
   if (!id) return json({ error: "missing id" }, { status: 400 });

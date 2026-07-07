@@ -4,6 +4,9 @@ const json = (body, init = {}) =>
     headers: {
       "content-type": "application/json; charset=utf-8",
       "cache-control": "public, max-age=10",
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET,OPTIONS",
+      "access-control-allow-headers": "content-type",
       ...(init.headers || {})
     }
   });
@@ -12,6 +15,8 @@ const EASTMONEY_TREND = "https://push2his.eastmoney.com/api/qt/stock/trends2/get
 const EASTMONEY_QUOTE = "https://push2.eastmoney.com/api/qt/ulist.np/get";
 
 export async function onRequest({ request }) {
+  if (request.method === "OPTIONS") return json({ ok: true });
+
   const url = new URL(request.url);
   const parts = url.pathname.split("/").filter(Boolean);
   const action = parts[2];
@@ -39,7 +44,8 @@ export async function onRequest({ request }) {
   return new Response(await res.text(), {
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "cache-control": "public, max-age=10"
+      "cache-control": "public, max-age=10",
+      "access-control-allow-origin": "*"
     }
   });
 }
@@ -65,7 +71,8 @@ async function quote(url) {
   return new Response(await res.text(), {
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "cache-control": "public, max-age=3"
+      "cache-control": "public, max-age=3",
+      "access-control-allow-origin": "*"
     }
   });
 }
