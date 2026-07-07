@@ -37,12 +37,30 @@ const cleanPayload = value => {
     sizeMode: ["micro", "tiny", "normal"].includes(sourceFloat.sizeMode) ? sourceFloat.sizeMode : "normal",
     layoutMode: ["auto", "list", "row", "grid"].includes(sourceFloat.layoutMode) ? sourceFloat.layoutMode : "auto"
   };
+  const reminders = Array.isArray(value.reminders)
+    ? value.reminders
+      .filter(item => item && /^[0-9A-Z]+\.[A-Za-z0-9_.-]+$/.test(String(item.secid || "")))
+      .map(item => ({
+        id: String(item.id || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 48) || crypto.randomUUID(),
+        secid: String(item.secid),
+        metric: ["price", "pct"].includes(item.metric) ? item.metric : "price",
+        op: ["gte", "lte"].includes(item.op) ? item.op : "gte",
+        value: Number(item.value),
+        mode: ["toast", "fullscreen"].includes(item.mode) ? item.mode : "toast",
+        armed: item.armed !== false,
+        createdAt: String(item.createdAt || ""),
+        lastTriggeredAt: String(item.lastTriggeredAt || "")
+      }))
+      .filter(item => Number.isFinite(item.value))
+      .slice(0, 120)
+    : [];
   return {
     symbols,
     refreshSeconds,
     theme,
     displayMetrics,
     rightEdge: value.rightEdge === "latest" ? "latest" : "close",
+    reminders,
     accountMode: value.accountMode === "reserved-default" ? "reserved-default" : "reserved-default",
     defaultUserId: "default-user",
     floatSettings,

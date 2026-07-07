@@ -379,6 +379,62 @@
 
     .toast.show { opacity: 1; }
 
+    .toast.big {
+      left: auto;
+      right: 22px;
+      bottom: 22px;
+      transform: none;
+      max-width: min(520px, calc(100% - 44px));
+      padding: 18px 20px;
+      border-width: 2px;
+      font-size: 18px;
+      font-weight: 900;
+      box-shadow: 0 18px 60px rgba(14, 21, 45, .22);
+    }
+
+    .alert-fullscreen {
+      position: fixed;
+      inset: 0;
+      z-index: 9;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(245, 247, 251, .92);
+      backdrop-filter: blur(10px);
+    }
+
+    .alert-fullscreen.open { display: flex; }
+
+    .alert-card {
+      width: min(720px, 100%);
+      padding: 30px;
+      border: 2px solid var(--ink);
+      border-radius: 10px;
+      background: var(--panel);
+      box-shadow: 0 28px 90px rgba(14, 21, 45, .3);
+    }
+
+    .alert-title {
+      font-size: clamp(28px, 5vw, 56px);
+      line-height: 1.05;
+      font-weight: 900;
+    }
+
+    .alert-body {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .alert-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
     .refresh-status {
       display: inline-flex;
       align-items: center;
@@ -593,6 +649,47 @@
       padding: 10px 12px 12px;
       border-top: 1px solid var(--line);
       background: var(--panel);
+    }
+
+    .reminder-panel {
+      padding: 10px 12px 14px;
+      border-top: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .reminder-form {
+      display: grid;
+      grid-template-columns: 1fr 76px 92px 112px auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .reminder-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .reminder-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 9px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #f8faff;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .reminder-chip button {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-weight: 900;
     }
 
     .chart-tools {
@@ -1432,6 +1529,10 @@
       .detail-meta {
         grid-template-columns: repeat(3, 1fr);
       }
+
+      .reminder-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
 
     @media (max-width: 390px) {
@@ -1440,6 +1541,7 @@
       .change { font-size: 17px; }
       .name { font-size: 15px; }
       .detail-meta { grid-template-columns: repeat(2, 1fr); }
+      .reminder-form { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -1526,6 +1628,35 @@
         </div>
       </div>
       <div id="detailMeta" class="detail-meta"></div>
+      <div class="reminder-panel">
+        <div class="reminder-form">
+          <select id="reminderMetric" class="field">
+            <option value="price">价格</option>
+            <option value="pct">涨跌幅%</option>
+          </select>
+          <select id="reminderOp" class="field">
+            <option value="gte">≥</option>
+            <option value="lte">≤</option>
+          </select>
+          <input id="reminderValue" class="field" type="number" step="0.01" placeholder="数值" />
+          <select id="reminderMode" class="field">
+            <option value="toast">大 toast</option>
+            <option value="fullscreen">全屏提醒</option>
+          </select>
+          <button id="reminderAdd" class="btn secondary" type="button" title="添加提醒">+</button>
+        </div>
+        <div id="reminderList" class="reminder-list"></div>
+      </div>
+    </article>
+  </section>
+
+  <section id="alertOverlay" class="alert-fullscreen" aria-hidden="true">
+    <article class="alert-card">
+      <div id="alertTitle" class="alert-title">提醒触发</div>
+      <div id="alertBody" class="alert-body"></div>
+      <div class="alert-actions">
+        <button id="alertClose" class="btn secondary" type="button">关闭</button>
+      </div>
     </article>
   </section>
 
@@ -1586,6 +1717,7 @@
     const SYNC_KEY = "lite-stock-board-sync-id-v1";
     const DISPLAY_KEY = "lite-stock-board-display-v1";
     const RIGHT_EDGE_KEY = "lite-stock-board-right-edge-v1";
+    const REMINDER_KEY = "lite-stock-board-reminders-v1";
     const API_QUOTE = "https://push2.eastmoney.com/api/qt/ulist.np/get";
     const API_TREND = "https://push2his.eastmoney.com/api/qt/stock/trends2/get";
     const API_KLINE = "https://push2his.eastmoney.com/api/qt/stock/kline/get";
@@ -1623,6 +1755,16 @@
       chartZoomIn: document.querySelector("#chartZoomIn"),
       chartZoomOut: document.querySelector("#chartZoomOut"),
       chartReset: document.querySelector("#chartReset"),
+      reminderMetric: document.querySelector("#reminderMetric"),
+      reminderOp: document.querySelector("#reminderOp"),
+      reminderValue: document.querySelector("#reminderValue"),
+      reminderMode: document.querySelector("#reminderMode"),
+      reminderAdd: document.querySelector("#reminderAdd"),
+      reminderList: document.querySelector("#reminderList"),
+      alertOverlay: document.querySelector("#alertOverlay"),
+      alertTitle: document.querySelector("#alertTitle"),
+      alertBody: document.querySelector("#alertBody"),
+      alertClose: document.querySelector("#alertClose"),
       theme: document.querySelector("#themeBtn"),
       settings: document.querySelector("#settingsBtn"),
       settingsModal: document.querySelector("#settingsModal"),
@@ -1642,6 +1784,7 @@
     let quoteMap = new Map();
     let trendMap = new Map();
     let displayMetrics = loadDisplayMetrics();
+    let reminders = loadReminders();
     let detailState = { secid: null, view: "today", loading: false };
     let detailCache = new Map();
     let chartState = { type: null, data: [], offset: 0, window: 90, hover: null, dragging: false, dragX: 0, dragOffset: 0 };
@@ -1683,6 +1826,28 @@
 
     function saveDisplayMetrics() {
       localStorage.setItem(DISPLAY_KEY, JSON.stringify(displayMetrics));
+      queueCloudSync();
+    }
+
+    function loadReminders() {
+      try {
+        const data = JSON.parse(localStorage.getItem(REMINDER_KEY) || "[]");
+        return Array.isArray(data) ? data.filter(isValidReminder) : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function isValidReminder(item) {
+      return item && /^[0-9A-Z]+\.[A-Za-z0-9_.-]+$/.test(String(item.secid || "")) &&
+        ["price", "pct"].includes(item.metric) &&
+        ["gte", "lte"].includes(item.op) &&
+        Number.isFinite(Number(item.value)) &&
+        ["toast", "fullscreen"].includes(item.mode || "toast");
+    }
+
+    function saveReminders() {
+      localStorage.setItem(REMINDER_KEY, JSON.stringify(reminders));
       queueCloudSync();
     }
 
@@ -1734,11 +1899,14 @@
       return `${prefix} ${code}`;
     }
 
-    function toast(message) {
+    function toast(message, big = false) {
       els.toast.textContent = message;
+      els.toast.classList.toggle("big", Boolean(big));
       els.toast.classList.add("show");
       clearTimeout(toast.hideTimer);
-      toast.hideTimer = setTimeout(() => els.toast.classList.remove("show"), 2600);
+      toast.hideTimer = setTimeout(() => {
+        els.toast.classList.remove("show", "big");
+      }, big ? 6500 : 2600);
     }
 
     function markRefresh() {
@@ -1862,6 +2030,7 @@
         theme: localStorage.getItem(THEME_KEY) || "auto",
         displayMetrics,
         rightEdge: loadRightEdge(),
+        reminders,
         accountMode: "reserved-default",
         defaultUserId: DEFAULT_SYNC_ID,
         updatedAt: new Date().toISOString()
@@ -1912,6 +2081,10 @@
       if (data.displayMetrics && typeof data.displayMetrics === "object") {
         displayMetrics = data.displayMetrics;
         saveDisplayMetrics();
+      }
+      if (Array.isArray(data.reminders)) {
+        reminders = data.reminders.filter(isValidReminder);
+        saveReminders();
       }
       if (data.rightEdge) saveRightEdge(data.rightEdge);
       render();
@@ -2267,6 +2440,7 @@
       quoteMap = new Map(list.map(item => [`${item.f13}.${item.f12}`, item]));
       updateTicker(list);
       render();
+      checkReminders();
     }
 
     async function refreshTrends() {
@@ -2366,6 +2540,62 @@
       document.querySelectorAll("canvas[data-chart]").forEach(canvas => {
         drawChart(canvas, trendMap.get(canvas.dataset.chart) || [], quoteMap.get(canvas.dataset.chart));
       });
+    }
+
+    function reminderCurrentValue(reminder, quote) {
+      return reminder.metric === "pct" ? Number(quote?.f3) : Number(quote?.f2);
+    }
+
+    function reminderTriggered(reminder, quote) {
+      const value = reminderCurrentValue(reminder, quote);
+      if (!Number.isFinite(value)) return false;
+      const target = Number(reminder.value);
+      return reminder.op === "gte" ? value >= target : value <= target;
+    }
+
+    function reminderText(reminder, quote) {
+      const name = quote?.f14 || secidToDisplay(reminder.secid);
+      const metric = reminder.metric === "pct" ? "涨跌幅" : "价格";
+      const unit = reminder.metric === "pct" ? "%" : "";
+      const op = reminder.op === "gte" ? "≥" : "≤";
+      const value = reminderCurrentValue(reminder, quote);
+      return `${name} ${metric} ${formatNum(value)}${unit} 已触发 ${op} ${formatNum(reminder.value)}${unit}`;
+    }
+
+    function checkReminders() {
+      let changed = false;
+      reminders.forEach(reminder => {
+        const quote = quoteMap.get(reminder.secid);
+        if (!quote) return;
+        const hit = reminderTriggered(reminder, quote);
+        if (hit && reminder.armed !== false) {
+          reminder.armed = false;
+          reminder.lastTriggeredAt = new Date().toISOString();
+          changed = true;
+          fireReminder(reminder, quote);
+        } else if (!hit && reminder.armed === false) {
+          reminder.armed = true;
+          changed = true;
+        }
+      });
+      if (changed) {
+        localStorage.setItem(REMINDER_KEY, JSON.stringify(reminders));
+        renderReminderList();
+        queueCloudSync();
+      }
+    }
+
+    function fireReminder(reminder, quote) {
+      const text = reminderText(reminder, quote);
+      if (reminder.mode === "fullscreen") {
+        els.alertTitle.textContent = quote?.f14 || "提醒触发";
+        els.alertBody.textContent = text;
+        els.alertOverlay.classList.add("open");
+        els.alertOverlay.setAttribute("aria-hidden", "false");
+      } else {
+        toast(text, true);
+      }
+      if (navigator.vibrate) navigator.vibrate([160, 80, 160]);
     }
 
     function minuteOfDay(time) {
@@ -2562,6 +2792,58 @@
         <div class="fact"><div class="label">成交量</div><div class="value">${formatAmount(quote?.f5)}</div></div>
         <div class="fact"><div class="label">视图</div><div class="value">${activeViewLabel()}</div></div>
       `;
+      renderReminderList();
+    }
+
+    function renderReminderList() {
+      if (!els.reminderList) return;
+      const secid = detailState.secid;
+      const list = reminders.filter(item => item.secid === secid);
+      if (!secid || !list.length) {
+        els.reminderList.innerHTML = `<span class="reminder-chip">暂无提醒</span>`;
+        return;
+      }
+      els.reminderList.innerHTML = list.map(item => {
+        const metric = item.metric === "pct" ? "涨跌幅" : "价格";
+        const unit = item.metric === "pct" ? "%" : "";
+        const op = item.op === "gte" ? "≥" : "≤";
+        const mode = item.mode === "fullscreen" ? "全屏" : "toast";
+        return `<span class="reminder-chip">${metric} ${op} ${formatNum(item.value)}${unit} · ${mode}<button data-reminder-remove="${item.id}" title="删除">×</button></span>`;
+      }).join("");
+    }
+
+    function addReminder() {
+      if (!detailState.secid) return;
+      const value = Number(els.reminderValue.value);
+      if (!Number.isFinite(value)) {
+        toast("请输入提醒数值");
+        return;
+      }
+      reminders.push({
+        id: `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
+        secid: detailState.secid,
+        metric: els.reminderMetric.value,
+        op: els.reminderOp.value,
+        value,
+        mode: els.reminderMode.value,
+        armed: true,
+        createdAt: new Date().toISOString()
+      });
+      els.reminderValue.value = "";
+      saveReminders();
+      renderReminderList();
+      checkReminders();
+    }
+
+    function removeReminder(id) {
+      reminders = reminders.filter(item => item.id !== id);
+      saveReminders();
+      renderReminderList();
+    }
+
+    function closeAlertOverlay() {
+      els.alertOverlay.classList.remove("open");
+      els.alertOverlay.setAttribute("aria-hidden", "true");
     }
 
     function activeViewLabel() {
@@ -3146,6 +3428,15 @@
       chartState.hover = null;
       chartState.window = Math.min(chartState.data.length || 90, 90);
       drawInteractiveChart();
+    });
+    els.reminderAdd.addEventListener("click", addReminder);
+    els.reminderList.addEventListener("click", event => {
+      const button = event.target.closest("[data-reminder-remove]");
+      if (button) removeReminder(button.dataset.reminderRemove);
+    });
+    els.alertClose.addEventListener("click", closeAlertOverlay);
+    els.alertOverlay.addEventListener("click", event => {
+      if (event.target === els.alertOverlay) closeAlertOverlay();
     });
     els.detailCanvas.addEventListener("mousemove", handleChartMove);
     els.detailCanvas.addEventListener("mouseleave", handleChartLeave);
