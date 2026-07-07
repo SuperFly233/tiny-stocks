@@ -20,6 +20,8 @@ QUOTE_API = "https://push2.eastmoney.com/api/qt/ulist.np/get"
 TREND_API = "https://push2his.eastmoney.com/api/qt/stock/trends2/get"
 QUOTE_PROXY = "https://tiny-stocks.pages.dev/api/market/quote"
 TREND_PROXY = "https://tiny-stocks.pages.dev/api/market/trend"
+SYNC_API = "https://tiny-stocks.pages.dev/api/sync"
+DEFAULT_SYNC_ID = "default-user"
 
 DEFAULT_SYMBOLS = ["1.000001", "0.399001", "0.920186", "1.600519"]
 DEFAULT_CONFIG = {
@@ -33,6 +35,7 @@ DEFAULT_CONFIG = {
     "size_mode": "normal",
     "layout_mode": "list",
     "focus_index": 0,
+    "cloud_sync": True,
 }
 
 
@@ -83,6 +86,76 @@ def load_config():
 
 def save_config(config):
     CONFIG_FILE.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def clean_cloud_symbols(value):
+    if not isinstance(value, list):
+        return []
+    items = []
+    for item in value:
+        text = str(item)
+        if re.match(r"^[01]\.\d{6}$", text) and text not in items:
+            items.append(text)
+    return items
+
+
+def fetch_cloud_sync(timeout=4):
+    try:
+        return fetch_json(SYNC_API, {"id": DEFAULT_SYNC_ID}, timeout=timeout, retries=0)
+    except Exception:
+        return {}
+
+
+def apply_cloud_sync(config):
+    if not config.get("cloud_sync", True):
+        return config
+    data = fetch_cloud_sync()
+    if not data:
+        return config
+    symbols = clean_cloud_symbols(data.get("symbols"))
+    if symbols:
+        config["symbols"] = symbols
+    refresh_seconds = int(data.get("refreshSeconds") or 0)
+    if refresh_seconds >= 1:
+        config["refresh_seconds"] = min(3600, refresh_seconds)
+    if isinstance(data.get("displayMetrics"), dict):
+        config["display_metrics"] = data["displayMetrics"]
+    float_settings = data.get("floatSettings") if isinstance(data.get("floatSettings"), dict) else {}
+    if float_settings.get("sizeMode") in GEOMETRIES:
+        config["size_mode"] = float_settings["sizeMode"]
+    if float_settings.get("layoutMode") in {"list", "row", "grid"}:
+        config["layout_mode"] = float_settings["layoutMode"]
+    return config
+
+
+def upload_cloud_sync(config):
+    if not config.get("cloud_sync", True):
+        return
+    payload = {
+        "symbols": clean_cloud_symbols(config.get("symbols")) or DEFAULT_SYMBOLS,
+        "refreshSeconds": int(config.get("refresh_seconds", 5) or 5),
+        "theme": "auto",
+        "displayMetrics": config.get("display_metrics") or {},
+        "accountMode": "reserved-default",
+        "defaultUserId": DEFAULT_SYNC_ID,
+        "floatSettings": {
+            "sizeMode": size_mode(config),
+            "layoutMode": layout_mode(config),
+        },
+    }
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    req = Request(
+        f"{SYNC_API}?{urlencode({'id': DEFAULT_SYNC_ID})}",
+        data=body,
+        method="PUT",
+        headers={
+            "User-Agent": "Mozilla/5.0",
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept": "application/json,text/plain,*/*",
+        },
+    )
+    with urlopen(req, timeout=6) as response:
+        response.read()
 
 
 def normalize_symbol(raw):
@@ -430,7 +503,7 @@ class StockRow(tk.Frame):
 
 class TinyStockWindow:
     def __init__(self):
-        self.config = load_config()
+        self.config = apply_cloud_sync(load_config())
         self.symbols = list(dict.fromkeys(self.config.get("symbols", DEFAULT_SYMBOLS)))
         self.quotes = {}
         self.trends = {}
@@ -444,6 +517,7 @@ class TinyStockWindow:
         self.next_trend_at = 0
         self.drag_origin = None
         self.row_drag = None
+        self.sync_timer = None
 
         self.root = tk.Tk()
         self.root.title("Tiny Stocks")
@@ -469,6 +543,27 @@ class TinyStockWindow:
         self.build()
         self.render_rows()
         self.tick()
+
+    def save_and_sync(self):
+        save_config(self.config)
+        if self.sync_timer:
+            self.root.after_cancel(self.sync_timer)
+        self.sync_timer = self.root.after(650, self.sync_async)
+
+    def sync_async(self):
+        self.sync_timer = None
+        config = dict(self.config)
+        config["symbols"] = list(self.symbols)
+        config["display_metrics"] = dict(self.display_metrics)
+        config["size_mode"] = self.mode
+        config["layout_mode"] = self.layout
+        threading.Thread(target=lambda: self.sync_worker(config), daemon=True).start()
+
+    def sync_worker(self, config):
+        try:
+            upload_cloud_sync(config)
+        except Exception:
+            pass
 
     def build(self):
         self.header = tk.Frame(self.root, bg="#05070a", padx=6 if self.mode == "micro" else 8, pady=3 if self.mode == "micro" else 6)
@@ -593,7 +688,7 @@ class TinyStockWindow:
         self.mode = mode if mode in GEOMETRIES else "normal"
         self.config["size_mode"] = self.mode
         self.config["geometry"] = ""
-        save_config(self.config)
+        self.save_and_sync()
         geometry_size = GEOMETRIES[self.mode]
         self.root.minsize(162 if self.mode == "micro" else 190 if self.mode == "tiny" else 280, 118 if self.mode == "micro" else 220 if self.mode == "tiny" else 360)
         self.root.geometry(f"{geometry_size}+{self.root.winfo_x()}+{self.root.winfo_y()}")
@@ -607,7 +702,7 @@ class TinyStockWindow:
     def set_layout_mode(self, mode):
         self.layout = mode if mode in {"list", "row", "grid"} else "list"
         self.config["layout_mode"] = self.layout
-        save_config(self.config)
+        self.save_and_sync()
         self.render_rows()
         self.apply_data(self.quotes, self.trends, None)
 
@@ -615,14 +710,14 @@ class TinyStockWindow:
         seconds = max(1, min(60, int(seconds or 5)))
         self.config["refresh_seconds"] = seconds
         self.next_quote_at = 0
-        save_config(self.config)
+        self.save_and_sync()
 
     def set_row_metric(self, secid, metric):
         if metric not in METRICS:
             return
         self.display_metrics[secid] = metric
         self.config["display_metrics"] = self.display_metrics
-        save_config(self.config)
+        self.save_and_sync()
         row = self.rows.get(secid)
         if row:
             row.set_main_metric(metric)
@@ -654,7 +749,7 @@ class TinyStockWindow:
         target_index = max(0, min(target_index, len(self.symbols)))
         self.symbols.insert(target_index, item)
         self.config["symbols"] = self.symbols
-        save_config(self.config)
+        self.save_and_sync()
         self.render_rows()
         self.apply_data(self.quotes, self.trends, None)
 
@@ -753,20 +848,20 @@ class TinyStockWindow:
             return
         self.symbols.append(secid)
         self.config["symbols"] = self.symbols
-        save_config(self.config)
+        self.save_and_sync()
         self.render_rows()
         self.force_refresh()
 
     def remove_symbol(self, secid):
         self.symbols = [item for item in self.symbols if item != secid]
         self.config["symbols"] = self.symbols
-        save_config(self.config)
+        self.save_and_sync()
         self.render_rows()
 
     def reset_symbols(self):
         self.symbols = DEFAULT_SYMBOLS[:]
         self.config["symbols"] = self.symbols
-        save_config(self.config)
+        self.save_and_sync()
         self.render_rows()
         self.force_refresh()
 
@@ -774,12 +869,12 @@ class TinyStockWindow:
         value = not bool(self.root.attributes("-topmost"))
         self.root.attributes("-topmost", value)
         self.config["always_on_top"] = value
-        save_config(self.config)
+        self.save_and_sync()
 
     def set_opacity(self, value):
         self.root.attributes("-alpha", value)
         self.config["opacity"] = value
-        save_config(self.config)
+        self.save_and_sync()
 
     def close(self):
         self.running = False
@@ -789,6 +884,10 @@ class TinyStockWindow:
         self.config["size_mode"] = self.mode
         self.config["layout_mode"] = self.layout
         save_config(self.config)
+        try:
+            upload_cloud_sync(self.config)
+        except Exception:
+            pass
         self.root.destroy()
 
     def run(self):

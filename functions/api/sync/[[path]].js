@@ -30,6 +30,13 @@ const cleanPayload = value => {
       }
     }
   }
+  const sourceFloat = value.floatSettings && typeof value.floatSettings === "object"
+    ? value.floatSettings
+    : {};
+  const floatSettings = {
+    sizeMode: ["micro", "tiny", "normal"].includes(sourceFloat.sizeMode) ? sourceFloat.sizeMode : "normal",
+    layoutMode: ["list", "row", "grid"].includes(sourceFloat.layoutMode) ? sourceFloat.layoutMode : "list"
+  };
   return {
     symbols,
     refreshSeconds,
@@ -37,6 +44,7 @@ const cleanPayload = value => {
     displayMetrics,
     accountMode: value.accountMode === "reserved-default" ? "reserved-default" : "reserved-default",
     defaultUserId: "default-user",
+    floatSettings,
     updatedAt: new Date().toISOString()
   };
 };
